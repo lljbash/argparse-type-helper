@@ -2,7 +2,14 @@ import argparse
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Literal, cast, dataclass_transform, get_type_hints
 
-from targs.utils import Sentry, get_attr_docstrings, inst_sentry, is_sentry, logger
+from targs.utils import (
+    Sentry,
+    factory,
+    get_attr_docstrings,
+    inst_sentry,
+    is_sentry,
+    logger,
+)
 
 __all__ = ["Name", "Flag", "targ", "targs", "register_targs", "extract_targs"]
 
@@ -100,34 +107,9 @@ class TArg:
         get_targs(owner, check=False)[name] = self
 
 
-def targ(
-    name_or_flag: NameOrFlag | Sentry[Name] | Sentry[Flag],
-    action: Action | argparse.BooleanOptionalAction | None | Sentry[Unset] = Unset,
-    nargs: int | Literal["?", "*", "+"] | None | Sentry[Unset] = Unset,
-    const: Any | Sentry[Unset] = Unset,
-    default: Any | Sentry[Unset] = Unset,
-    type: Callable[[str], Any] | None | Sentry[Unset] = Unset,
-    choices: list[str] | None | Sentry[Unset] = Unset,
-    required: bool | None | Sentry[Unset] = Unset,
-    help: str | None | Sentry[Unset] = Unset,
-    metavar: str | None | Sentry[Unset] = Unset,
-    dest: str | None | Sentry[Unset] = Unset,
-    deprecated: bool | None | Sentry[Unset] = Unset,
-) -> Any:
-    return TArg(
-        name_or_flag=name_or_flag,
-        action=action,
-        nargs=nargs,
-        const=const,
-        default=default,
-        type=type,
-        choices=choices,
-        required=required,
-        help=help,
-        metavar=metavar,
-        dest=dest,
-        deprecated=deprecated,
-    )
+@factory(TArg)
+def targ(*args: Any, **kwargs: Any) -> Any:
+    return TArg(*args, **kwargs)
 
 
 _TARGS_ATTR = "_targs"
