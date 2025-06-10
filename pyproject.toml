@@ -1,0 +1,23 @@
+[project]
+name = "targs"
+version = "0.1.0"
+description = "an easy-to-integrate typed argument parser"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.black]
+include = '\.pyi?$'
+required-version = "25"
+
+[tool.basedpyright]
+include = ["targs", "tests"]
+pythonVersion = "3.12"
+pythonPlatform = "Linux"
+typeCheckingMode = "strict"
+
+[dependency-groups]
+dev = [
+    "black",
+    "basedpyright"
+]
