@@ -36,7 +36,6 @@ type Action = Literal[
 ]
 
 
-# @factory_only
 @dataclass
 class TArg:
     name_or_flag: NameOrFlag | Sentry[Name] | Sentry[Flag]
@@ -131,6 +130,10 @@ def targ(
     )
 
 
+_TARGS_ATTR = "_targs"
+_TARGS_FLAG_ATTR = "_targs_flag"
+
+
 @dataclass_transform(kw_only_default=True, field_specifiers=(targ, TArg))
 def targs[T](cls: type[T]) -> type[T]:
     def __init__(self: T, **kwargs: Any) -> None:
@@ -149,16 +152,16 @@ def targs[T](cls: type[T]) -> type[T]:
 
     cls.__init__ = __init__
     cls.__repr__ = __repr__
-    setattr(cls, "_targs_flag", True)
+    setattr(cls, _TARGS_FLAG_ATTR, True)
     return cls
 
 
 def get_targs(cls: type[object], *, check: bool = True) -> dict[str, TArg]:
-    if check and not getattr(cls, "_targs_flag", False):
+    if check and not getattr(cls, _TARGS_FLAG_ATTR, False):
         raise TypeError(f"{cls.__name__} is not a targs class. Use @targs decorator.")
-    if not hasattr(cls, "_targs"):
-        setattr(cls, "_targs", {})
-    return getattr(cls, "_targs")
+    if not hasattr(cls, _TARGS_ATTR):
+        setattr(cls, _TARGS_ATTR, {})
+    return getattr(cls, _TARGS_ATTR)
 
 
 def register_targs(
