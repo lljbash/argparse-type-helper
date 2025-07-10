@@ -1,23 +1,49 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "targs"
-version = "0.1.0"
+dynamic = ["version"]
+dependencies = []
+requires-python = ">=3.12"
+authors = [{ name = "lljbash", email = "lljbash@gmail.com" }]
 description = "an easy-to-integrate typed argument parser"
 readme = "README.md"
-requires-python = ">=3.12"
-dependencies = []
+keywords = ["argparse", "typing", "argument parser", "type hints", "typed arguments"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development :: Libraries",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/lljbash/targs"
+"Bug Tracker" = "https://github.com/lljbash/targs/issues"
+
+[tool.setuptools_scm]
 
 [tool.black]
 include = '\.pyi?$'
 required-version = "25"
+
+[tool.isort]
+profile = "black"
 
 [tool.basedpyright]
 include = ["targs", "tests"]
 pythonVersion = "3.12"
 pythonPlatform = "Linux"
 typeCheckingMode = "strict"
+deprecateTypingAliases = true
 
 [dependency-groups]
 dev = [
-    "black",
-    "basedpyright"
+    "basedpyright>=1.29.2",
+    "black>=25.1.0",
+    "isort>=6.0.1",
 ]
