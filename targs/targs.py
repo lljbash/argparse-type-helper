@@ -4,7 +4,7 @@ from typing import Any, Callable, Literal, cast, dataclass_transform, get_type_h
 
 from targs.utils import (
     Sentry,
-    factory,
+    copy_signature,
     get_attr_docstrings,
     inst_sentry,
     is_sentry,
@@ -107,7 +107,7 @@ class TArg:
         get_targs(owner, check=False)[name] = self
 
 
-@factory(TArg)
+@copy_signature(TArg)
 def targ(*args: Any, **kwargs: Any) -> Any:
     return TArg(*args, **kwargs)
 

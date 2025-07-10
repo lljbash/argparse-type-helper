@@ -1,7 +1,7 @@
 import ast
 import inspect
 import logging
-from typing import Any, Callable, TypeGuard
+from typing import Any, Callable, Concatenate, TypeGuard
 
 __all__ = ["logger", "Sentry", "is_sentry", "inst_sentry", "get_attr_docstrings"]
 
@@ -23,12 +23,20 @@ def inst_sentry[T](value: Sentry[T], sentry_type: type[T]) -> T:
     return value if isinstance(value, sentry_type) else sentry_type()
 
 
-def factory[**P, Cls, R](
-    cls: Callable[P, Cls],
-) -> Callable[[Callable[P, R]], Callable[P, R]]:
-    """Decorator to create type-hinted factory functions."""
-    del cls  # Unused parameter
-    return lambda func: func
+def copy_signature[**P, R1, R2](
+    fn: Callable[P, R1],
+) -> Callable[[Callable[P, R2]], Callable[P, R2]]:
+    """Copy the signature of a function, allowing easier function wrapping with type hints."""
+    del fn  # Unused parameter
+    return lambda fn: fn
+
+
+def copy_signature_remove_first[**P, R1, R2, F](
+    fn: Callable[Concatenate[F, P], R1],
+) -> Callable[[Callable[P, R2]], Callable[P, R2]]:
+    """Like `copy_signature`, but removes the first parameter from the signature."""
+    del fn  # Unused parameter
+    return lambda fn: fn
 
 
 def get_attr_docstrings(cls: type[object]) -> dict[str, str]:
