@@ -16,7 +16,6 @@ class MyArgs:
         action="extend",
         nargs="+",
         default=[],
-        help="Extra arguments.",
     )
     """Extra arguments to pass to the processing function."""
 

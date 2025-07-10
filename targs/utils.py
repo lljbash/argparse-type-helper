@@ -57,6 +57,6 @@ def get_attr_docstrings(cls: type[object]) -> dict[str, str]:
                 cur_attr = stmt.targets[0].id
         elif isinstance(stmt, ast.Expr):
             if isinstance(stmt.value, ast.Constant) and cur_attr is not None:
-                attr_docstrings[cur_attr] = inspect.cleandoc(stmt.value.value)
+                attr_docstrings[cur_attr] = inspect.cleandoc(str(stmt.value.value))
                 cur_attr = None
     return attr_docstrings
