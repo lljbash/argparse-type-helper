@@ -39,8 +39,7 @@ def copy_signature_remove_first[**P, R1, R2, F](
     return lambda fn: fn
 
 
-def get_attr_docstrings(cls: type[object]) -> dict[str, str]:
-    """Best effort to get docstrings for attributes in a class."""
+def _get_attr_docstrings_impl(cls: type[object]) -> dict[str, str]:
     source = inspect.getsource(cls)
     tree = ast.parse(source)
     classdef = tree.body[0]
@@ -59,4 +58,15 @@ def get_attr_docstrings(cls: type[object]) -> dict[str, str]:
             if isinstance(stmt.value, ast.Constant) and cur_attr is not None:
                 attr_docstrings[cur_attr] = inspect.cleandoc(str(stmt.value.value))
                 cur_attr = None
+    return attr_docstrings
+
+
+def get_attr_docstrings(cls: type[object]) -> dict[str, str]:
+    """Best effort to get docstrings for attributes in a class."""
+    attr_docstrings: dict[str, str] = {}
+    for base in reversed(cls.__mro__):
+        if base is object:
+            continue
+        subdocstrings = _get_attr_docstrings_impl(base)
+        attr_docstrings.update(subdocstrings)
     return attr_docstrings
