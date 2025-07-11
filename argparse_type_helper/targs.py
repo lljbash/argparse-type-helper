@@ -137,12 +137,6 @@ def post_init[T, R](func: Callable[[T], R]) -> Callable[[T], R]:
 def targs[T](cls: type[T]) -> type[T]:
     """Decorator to transform a class into a targs class."""
 
-    post_methods = [
-        name
-        for name, member in cls.__dict__.items()
-        if callable(member) and getattr(member, _TARGS_POST_INIT_ATTR, False)
-    ]
-
     def __init__(self: T, **kwargs: Any) -> None:
         targs_dict = get_targs(self.__class__)
         for attr, arg_config in targs_dict.items():
@@ -153,8 +147,12 @@ def targs[T](cls: type[T]) -> type[T]:
             else:
                 setattr(self, attr, arg_config.default)
 
-        for name in post_methods:
-            getattr(self, name)()
+        for cls in reversed(type(self).__mro__):
+            if not hasattr(cls, _TARGS_FLAG_ATTR):
+                continue
+            for _, member in cls.__dict__.items():
+                if callable(member) and getattr(member, _TARGS_POST_INIT_ATTR, False):
+                    member(self)
 
     def __repr__(self: T) -> str:
         targs_attrs = get_targs(self.__class__).keys()
