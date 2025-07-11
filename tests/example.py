@@ -2,7 +2,15 @@ import argparse
 import sys
 from typing import Never
 
-from argparse_type_helper import Flag, Name, extract_targs, register_targs, targ, targs
+from argparse_type_helper import (
+    Flag,
+    Name,
+    extract_targs,
+    post_init,
+    register_targs,
+    targ,
+    targs,
+)
 
 
 # Define your typed arguments as a targ class
@@ -65,6 +73,13 @@ class MyArgs:
     This is useful for documentation purposes.
     Your LSP will also pick this up.
     """
+
+    # You can also use the `post_init` decorator to execute some code after the arguments are extracted.
+    # This is useful for validation or other post-processing.
+    @post_init
+    def validate(self) -> None:
+        if self.positional == "error":
+            raise ValueError("positional argument cannot be 'error'")
 
 
 # You can register the targs with a custom parser

@@ -11,7 +11,15 @@ from argparse_type_helper.utils import (
     logger,
 )
 
-__all__ = ["Name", "Flag", "targ", "targs", "register_targs", "extract_targs"]
+__all__ = [
+    "Name",
+    "Flag",
+    "targ",
+    "post_init",
+    "targs",
+    "register_targs",
+    "extract_targs",
+]
 
 
 class Unset:
@@ -110,15 +118,31 @@ class TArg:
 
 @copy_signature(TArg)
 def targ(*args: Any, **kwargs: Any) -> Any:
+    """defines an argument in a targs class."""
     return TArg(*args, **kwargs)
 
 
 _TARGS_ATTR = "_targs"
 _TARGS_FLAG_ATTR = "_targs_flag"
+_TARGS_POST_INIT_ATTR = "_targs_post_init"
+
+
+def post_init[T, R](func: Callable[[T], R]) -> Callable[[T], R]:
+    """Decorator to mark a function as a post-init function for targs classes."""
+    setattr(func, _TARGS_POST_INIT_ATTR, True)
+    return func
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=(targ, TArg))
 def targs[T](cls: type[T]) -> type[T]:
+    """Decorator to transform a class into a targs class."""
+
+    post_methods = [
+        name
+        for name, member in cls.__dict__.items()
+        if callable(member) and getattr(member, _TARGS_POST_INIT_ATTR, False)
+    ]
+
     def __init__(self: T, **kwargs: Any) -> None:
         targs_dict = get_targs(self.__class__)
         for attr, arg_config in targs_dict.items():
@@ -128,6 +152,9 @@ def targs[T](cls: type[T]) -> type[T]:
                 raise ValueError(f"Missing required argument: {attr}")
             else:
                 setattr(self, attr, arg_config.default)
+
+        for name in post_methods:
+            getattr(self, name)()
 
     def __repr__(self: T) -> str:
         targs_attrs = get_targs(self.__class__).keys()
@@ -174,11 +201,11 @@ def register_targs(
 
 def extract_targs[T](args: argparse.Namespace, cls: type[T]) -> T:
     targs_dict = get_targs(cls)
-    targs_instance = cls.__new__(cls)
+    kwargs = {}
     for attr, arg_config in targs_dict.items():
         dest = arg_config.get_dest()
         if hasattr(args, dest):
-            setattr(targs_instance, attr, getattr(args, dest))
+            kwargs[attr] = getattr(args, dest)
         else:
             raise AttributeError(f"Argument '{dest}' not found in parsed args.")
-    return targs_instance
+    return cls(**kwargs)
