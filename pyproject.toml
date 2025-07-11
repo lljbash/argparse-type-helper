@@ -3,7 +3,7 @@ requires = ["setuptools>=64", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "targs"
+name = "argparse-type-helper"
 dynamic = ["version"]
 dependencies = []
 requires-python = ">=3.12"
@@ -35,7 +35,7 @@ required-version = "25"
 profile = "black"
 
 [tool.basedpyright]
-include = ["targs", "tests"]
+include = ["argparse_type_helper", "tests"]
 pythonVersion = "3.12"
 pythonPlatform = "Linux"
 typeCheckingMode = "strict"

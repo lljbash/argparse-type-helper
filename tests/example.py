@@ -2,7 +2,7 @@ import argparse
 import sys
 from typing import Never
 
-from targs import Flag, Name, extract_targs, register_targs, targ, targs
+from argparse_type_helper import Flag, Name, extract_targs, register_targs, targ, targs
 
 
 # Define your typed arguments as a targ class

@@ -2,7 +2,7 @@ import argparse
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Literal, cast, dataclass_transform, get_type_hints
 
-from targs.utils import (
+from argparse_type_helper.utils import (
     Sentry,
     copy_signature,
     get_attr_docstrings,
