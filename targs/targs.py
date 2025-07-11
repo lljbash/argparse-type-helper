@@ -72,6 +72,7 @@ class TArg:
             self._real_name_or_flag = name
         elif is_sentry(self.name_or_flag, Flag):
             flag = inst_sentry(self.name_or_flag, Flag)
+            name = name.replace("_", "-")  # Convert underscores to dashes for flags
             self._real_name_or_flag = (
                 (flag.short, f"--{name}") if flag.short else f"--{name}"
             )
