@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/targs
+      url: https://pypi.org/p/argparse-type-helper
     permissions:
       id-token: write
     steps:
