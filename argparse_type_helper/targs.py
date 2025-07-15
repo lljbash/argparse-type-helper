@@ -1,4 +1,5 @@
 import argparse
+import copy
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Literal, cast, dataclass_transform, get_type_hints
 
@@ -160,15 +161,24 @@ def targs[T](cls: type[T]) -> type[T]:
 
     cls.__init__ = __init__
     cls.__repr__ = __repr__
-    setattr(cls, _TARGS_FLAG_ATTR, True)
+    check_and_maybe_init_targs_class(cls, raise_instead_of_init=False)
     return cls
 
 
+def check_and_maybe_init_targs_class(
+    cls: type[object], raise_instead_of_init: bool
+) -> None:
+    if getattr(cls, _TARGS_FLAG_ATTR, None) is not cls:
+        if raise_instead_of_init:
+            raise TypeError(
+                f"{cls.__name__} is not a targs class. Use @targs decorator."
+            )
+        setattr(cls, _TARGS_FLAG_ATTR, cls)
+        setattr(cls, _TARGS_ATTR, copy.deepcopy(getattr(cls, _TARGS_ATTR, {})))
+
+
 def get_targs(cls: type[object], *, check: bool = True) -> dict[str, TArg]:
-    if check and not getattr(cls, _TARGS_FLAG_ATTR, False):
-        raise TypeError(f"{cls.__name__} is not a targs class. Use @targs decorator.")
-    if not hasattr(cls, _TARGS_ATTR):
-        setattr(cls, _TARGS_ATTR, {})
+    check_and_maybe_init_targs_class(cls, raise_instead_of_init=check)
     return getattr(cls, _TARGS_ATTR)
 
 
