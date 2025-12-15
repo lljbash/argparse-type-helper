@@ -38,7 +38,7 @@ class Flag:
 
 type NameOrFlag = str | tuple[str, str]
 
-type Action = Literal[
+type StrAction = Literal[
     "store",
     "store_const",
     "store_true",
@@ -55,7 +55,7 @@ type Action = Literal[
 @dataclass
 class TArg:
     name_or_flag: NameOrFlag | Sentry[Name] | Sentry[Flag]
-    action: Action | argparse.BooleanOptionalAction | None | Sentry[Unset] = Unset
+    action: StrAction | type[argparse.Action] | None | Sentry[Unset] = Unset
     nargs: int | Literal["?", "*", "+"] | None | Sentry[Unset] = Unset
     const: Any | Sentry[Unset] = Unset
     default: Any | Sentry[Unset] = Unset
