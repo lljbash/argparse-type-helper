@@ -21,3 +21,6 @@ jobs:
 
       - name: Run basedpyright
         run: uv run basedpyright **/*.py
+
+      - name: Run tests
+        run: uv run pytest tests/ -v

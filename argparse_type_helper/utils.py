@@ -1,6 +1,7 @@
 import ast
 import inspect
 import logging
+import textwrap
 from typing import Any, Callable, Concatenate, TypeGuard
 
 __all__ = ["logger", "Sentry", "is_sentry", "inst_sentry", "get_attr_docstrings"]
@@ -40,7 +41,7 @@ def copy_signature_remove_first[**P, R1, R2, F](
 
 
 def _get_attr_docstrings_impl(cls: type[object]) -> dict[str, str]:
-    source = inspect.getsource(cls)
+    source = textwrap.dedent(inspect.getsource(cls))
     tree = ast.parse(source)
     classdef = tree.body[0]
     assert isinstance(classdef, ast.ClassDef), "Expected a class definition"

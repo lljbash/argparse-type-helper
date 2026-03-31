@@ -29,7 +29,8 @@ classifiers = [
 
 [tool.black]
 include = '\.pyi?$'
-required-version = "25"
+required-version = "26"
+target-version = ["py312"]
 
 [tool.isort]
 profile = "black"
@@ -44,6 +45,7 @@ deprecateTypingAliases = true
 [dependency-groups]
 dev = [
     "basedpyright>=1.29.2",
-    "black>=25.1.0",
+    "black~=26.0",
     "isort>=6.0.1",
+    "pytest>=8.0.0",
 ]

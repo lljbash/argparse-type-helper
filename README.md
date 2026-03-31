@@ -16,12 +16,20 @@ pip install argparse-type-helper
   Each field uses the same parameters as `argparse.add_argument` (`help`, `action`, `nargs`, etc.).
 - **Automatic registration**
   One call to `register_targs(parser, YourArgs)` wires up all arguments on your `ArgumentParser`.
+- **Smart type inference**
+  Automatically infers `type` from type hints — including `X | None`, `Optional[X]`, `list[X]` with `nargs`, and bare types like `int`/`float`/`str`. Skips `bool` (use `action="store_true/store_false"` instead).
 - **Typed extraction**
   After `parse_args()`, call `extract_targs()` to get a fully-typed instance of your class.
 - **Hybrid usage**
   Mix native `parser.add_argument(...)` calls with class-based definitions in the same parser.
 - **Docstring support**
   Use docstrings to automatically generate help text for your arguments.
+- **Argument groups** (`@tgroup`)
+  Organize arguments into groups for cleaner `--help` output.
+- **Mutually exclusive groups** (`@texclusive`)
+  Define arguments that cannot be used together.
+- **Subcommands** (`@tsubcommands`)
+  Define subcommands using class inheritance with full type safety and `isinstance`/`match` support.
 
 ## Why not [typed-argparse](https://typed-argparse.github.io/typed-argparse/)?
 
@@ -145,3 +153,152 @@ if __name__ == "__main__":
     print(f"Parsed arguments: {my_args}")
 ```
 <!-- MARKDOWN-AUTO-DOCS:END -->
+
+## Argument Groups
+
+Use `@tgroup` to organize related arguments into groups. Use `@texclusive` to define arguments that cannot be used together. Groups affect `--help` display and provide nested access after extraction.
+
+<!-- MARKDOWN-AUTO-DOCS:START (CODE:src=./tests/example_groups.py) -->
+<!-- The below code snippet is automatically added from ./tests/example_groups.py -->
+```py
+import argparse
+
+from argparse_type_helper import (
+    Flag,
+    extract_targs,
+    register_targs,
+    targ,
+    targs,
+    texclusive,
+    tgroup,
+)
+
+
+# Use @tgroup to organize related arguments into named groups.
+# Groups affect --help display and provide nested access after extraction.
+@tgroup("Database Options")
+class DbOptions:
+    """Database connection settings"""
+
+    host: str = targ(Flag, default="localhost")
+    """Database host"""
+    port: int = targ(Flag, default=5432)
+    """Database port"""
+
+
+# Use @texclusive to define arguments that cannot be used together.
+@texclusive(required=True)
+class VerbosityMode:
+    verbose: bool = targ(Flag("-v"), action="store_true")
+    quiet: bool = targ(Flag("-q"), action="store_true")
+
+
+# Reference groups and exclusive groups via type annotations.
+@targs
+class MyArgs:
+    db: DbOptions
+    mode: VerbosityMode
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Groups and exclusive example.")
+    register_targs(parser, MyArgs)
+
+    args = parser.parse_args()
+    my_args = extract_targs(args, MyArgs)
+
+    print(f"DB: {my_args.db.host}:{my_args.db.port}")
+    print(f"Verbose: {my_args.mode.verbose}, Quiet: {my_args.mode.quiet}")
+```
+<!-- MARKDOWN-AUTO-DOCS:END -->
+
+The `@tgroup` decorator supports multiple calling styles:
+```python
+@tgroup                                  # title defaults to class name
+@tgroup("Custom Title")                  # title as positional arg
+@tgroup(title="...", description="...")   # keyword args
+```
+
+> **Note:** Unlike `@tgroup` and `@tsubcommands`, `@texclusive` does not support `title` or `description` parameters. This is a limitation of `argparse.MutuallyExclusiveGroup` itself.
+
+## Subcommands
+
+Use `@tsubcommands` to define subcommands via class inheritance. Each subcommand is a `@targs` class inheriting from the `@tsubcommands` base. Subcommands are discovered automatically via `__subclasses__()` — no manual registration needed.
+
+<!-- MARKDOWN-AUTO-DOCS:START (CODE:src=./tests/example_subcommands.py) -->
+<!-- The below code snippet is automatically added from ./tests/example_subcommands.py -->
+```py
+import argparse
+
+from argparse_type_helper import (
+    Flag,
+    Name,
+    extract_targs,
+    register_targs,
+    targ,
+    targs,
+    tsubcommands,
+)
+
+
+# Use @tsubcommands to define a base class for subcommands.
+# Subcommands are @targs classes that inherit from this base.
+@tsubcommands
+class Commands:
+    """Available commands"""
+
+
+@targs
+class push(Commands):
+    """Push changes to remote"""
+
+    remote: str = targ(Name, nargs="?", default="origin")
+    force: bool = targ(Flag("-f"), action="store_true")
+
+
+@targs
+class pull(Commands):
+    """Pull changes from remote"""
+
+    remote: str = targ(Name, nargs="?", default="origin")
+    rebase: bool = targ(Flag, action="store_true")
+
+
+# Reference the subcommands base via type annotation.
+@targs
+class GitArgs:
+    verbose: bool = targ(Flag("-v"), action="store_true")
+    command: Commands
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Subcommands example.")
+    register_targs(parser, GitArgs)
+
+    args = parser.parse_args()
+    my_args = extract_targs(args, GitArgs)
+
+    # Use isinstance or pattern matching for type-safe access:
+    match my_args.command:
+        case push(remote=r, force=f):
+            print(f"Pushing to {r}, force={f}")
+        case pull(remote=r, rebase=rb):
+            print(f"Pulling from {r}, rebase={rb}")
+        case None:
+            print("No command specified")
+```
+<!-- MARKDOWN-AUTO-DOCS:END -->
+
+The `@tsubcommands` decorator supports:
+```python
+@tsubcommands                                        # basic
+@tsubcommands("Commands")                            # title as positional arg
+@tsubcommands(required=True)                         # require a subcommand
+@tsubcommands(title="...", description="...", required=True)
+```
+
+Type narrowing with `isinstance`:
+```python
+if isinstance(my_args.command, push):
+    print(my_args.command.remote)  # type-safe!
+```
