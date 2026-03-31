@@ -1,6 +1,6 @@
 # Agent Instructions for argparse-type-helper
 
-This repository contains a lightweight Python library that provides type-hinted argument parsing for `argparse`. The project is in Alpha stage and uses modern Python tooling with `uv` for dependency management.
+This repository contains a lightweight Python library that provides type-hinted argument parsing for `argparse`. The project is in Beta stage and uses modern Python tooling with `uv` for dependency management.
 
 ## Important Principles
 
