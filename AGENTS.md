@@ -50,6 +50,13 @@ uv run python tests/example_groups.py
 uv run python tests/example_subcommands.py
 ```
 
+### Auto-Documentation
+The example scripts are synced to the README.md using MARKDOWN-AUTO-DOCS. After updating examples, run the following command to update the README:
+```bash
+npm i -g markdown-auto-docs  # Install globally if not already installed
+markdown-auto-docs -c code-block -o ./README.md
+```
+
 ## High-Level Architecture
 
 **Core Problem:** `argparse` doesn't integrate well with type hints. This library bridges that gap by allowing you to define arguments using dataclass-like syntax with full type support, while remaining compatible with standard `argparse`.
