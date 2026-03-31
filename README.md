@@ -144,6 +144,13 @@ if __name__ == "__main__":
 ```
 <!-- MARKDOWN-AUTO-DOCS:END -->
 
+> **Tip:** The example above uses `create_parser` for convenience. You can also create the parser yourself and register with `register_targs`:
+> ```python
+> parser = MyParser(description="Process some data arguments.")
+> register_targs(parser, MyArgs, verbose=True)
+> ```
+> This is useful when you need full control over parser construction (custom `formatter_class`, `parents`, `epilog`, etc.).
+
 ## Argument Groups
 
 Use `@tgroup` to organize related arguments into groups. Use `@texclusive` to define arguments that cannot be used together. Groups affect `--help` display and provide nested access after extraction.
@@ -333,7 +340,9 @@ if isinstance(my_args.command, push):
 
 ## Quick Parser Creation
 
-Use `create_parser()` to create an `ArgumentParser` and register your `@targs` class in one step:
+There are two ways to set up a parser:
+
+**`create_parser()`** — one-step convenience function:
 
 ```python
 from argparse_type_helper import create_parser, extract_targs
@@ -349,7 +358,24 @@ args = parser.parse_args()
 my_args = extract_targs(args, MyArgs)
 ```
 
-`create_parser` accepts the same keyword arguments as `ArgumentParser` (`prog`, `description`, `formatter_class`, etc.), plus `parser_class` and `verbose`.
+`create_parser` accepts the same keyword arguments as `ArgumentParser` (`prog`, `description`, `formatter_class`, etc.), plus `parser_class` and `verbose`. It defaults to `RawDescriptionHelpFormatter` so docstring formatting is preserved in `--help`.
+
+**`register_targs()`** — separate parser creation and registration:
+
+```python
+from argparse_type_helper import register_targs, extract_targs
+
+parser = argparse.ArgumentParser(
+    description="My tool.",
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+)
+register_targs(parser, MyArgs, verbose=True)
+
+args = parser.parse_args()
+my_args = extract_targs(args, MyArgs)
+```
+
+Use `register_targs` when you need full control over parser construction. Note that `register_targs` does not change the parser's `formatter_class` — if you want newlines preserved in descriptions, pass `RawDescriptionHelpFormatter` yourself.
 
 ## Docstring-Driven Help
 
@@ -367,3 +393,5 @@ Docstrings serve double duty: they provide IDE tooltips **and** CLI help text. T
 | Attribute | `help=` text (full docstring) | — |
 
 Explicit `title=`, `description=`, or `help=` parameters always take priority over docstring values.
+
+> **Note on formatting:** By default, `argparse` collapses newlines in description text. `create_parser` uses `RawDescriptionHelpFormatter` automatically so docstring formatting is preserved. If you use `register_targs` directly, pass `formatter_class=argparse.RawDescriptionHelpFormatter` to your `ArgumentParser` for the same effect. Sub-parsers (subcommands) automatically inherit the parent parser's `formatter_class`.

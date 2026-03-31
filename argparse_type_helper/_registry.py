@@ -138,6 +138,7 @@ def register_targs(
                 subcmd_cls.__name__,
                 help=subcmd_doc.title,
                 description=subcmd_doc.full,
+                formatter_class=parser.formatter_class,
             )
             register_targs(sub_parser, subcmd_cls, verbose=verbose)
 
@@ -184,12 +185,18 @@ def create_parser(
 
     If *description* is not provided, the class docstring is used
     automatically (``full`` — title + description joined).
+
+    Defaults to ``RawDescriptionHelpFormatter`` so that docstring
+    formatting (newlines, blank lines) is preserved in ``--help``.
+    Pass an explicit ``formatter_class`` to override.
+
     Extra keyword arguments are forwarded to *parser_class*.
     """
     if description is None:
         cls_doc = DocString.parse(cls.__doc__)
         description = cls_doc.full
     parser_kwargs: dict[str, Any] = {**kwargs}
+    parser_kwargs.setdefault("formatter_class", argparse.RawDescriptionHelpFormatter)
     if description is not None:
         parser_kwargs["description"] = description
     if prog is not None:
