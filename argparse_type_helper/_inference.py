@@ -24,7 +24,7 @@ def infer_type_from_hint(type_hint: Any, has_nargs: bool) -> Any | None:
     Rules (in priority order):
     1. ``bool`` or ``bool | None`` → ``None`` (require explicit action).
     2. ``X | None`` / ``Optional[X]`` where *X* is a non-bool callable → *X*.
-    3. Generic with ``nargs`` (e.g. ``list[int]``) → element type.
+    3. Generic with ``nargs`` (e.g. ``Sequence[int]``, ``list[int]``) → element type.
     4. Bare callable (``int``, ``str``, ``float``, …) excluding ``bool`` → itself.
     5. Anything else → ``None``.
     """
@@ -44,7 +44,7 @@ def infer_type_from_hint(type_hint: Any, has_nargs: bool) -> Any | None:
     if type_hint is bool:
         return None
 
-    # Generic types like list[int], tuple[str, ...] — extract element type when nargs is set
+    # Generic types like Sequence[int], list[int], tuple[str, ...] — extract element type when nargs is set
     origin = getattr(type_hint, "__origin__", None)
     if origin is not None:
         args = getattr(type_hint, "__args__", None)

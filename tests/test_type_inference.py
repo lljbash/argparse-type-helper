@@ -1,6 +1,7 @@
 """Tests for expanded type inference in _register_single_targ / _infer_type_from_hint."""
 
 import argparse
+from collections.abc import Sequence
 from typing import Optional  # pyright: ignore[reportDeprecated]
 
 from argparse_type_helper import (
@@ -82,7 +83,7 @@ def test_typing_optional_inference():
 
 
 # ---------------------------------------------------------------------------
-# list[X] with nargs inference
+# list[X] / Sequence[X] with nargs inference
 # ---------------------------------------------------------------------------
 
 
@@ -106,6 +107,34 @@ def test_list_str_nargs_star():
     register_targs(parser, ListTypeArgs)
     args = parser.parse_args(["a", "b", "c"])
     result = extract_targs(args, ListTypeArgs)
+    assert result.names == ["a", "b", "c"]
+
+
+# ---------------------------------------------------------------------------
+# Sequence[X] with nargs inference (recommended over list[X])
+# ---------------------------------------------------------------------------
+
+
+@targs
+class SequenceTypeArgs:
+    numbers: Sequence[int] = targ(Flag, nargs="+", default=[])
+    names: Sequence[str] = targ(Name, nargs="*")
+
+
+def test_sequence_int_nargs_inference():
+    parser = argparse.ArgumentParser()
+    register_targs(parser, SequenceTypeArgs)
+    args = parser.parse_args(["--numbers", "1", "2", "3"])
+    result = extract_targs(args, SequenceTypeArgs)
+    assert result.numbers == [1, 2, 3]
+    assert all(isinstance(n, int) for n in result.numbers)
+
+
+def test_sequence_str_nargs_star():
+    parser = argparse.ArgumentParser()
+    register_targs(parser, SequenceTypeArgs)
+    args = parser.parse_args(["a", "b", "c"])
+    result = extract_targs(args, SequenceTypeArgs)
     assert result.names == ["a", "b", "c"]
 
 

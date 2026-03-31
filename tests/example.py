@@ -1,5 +1,6 @@
 import argparse
 import sys
+from collections.abc import Sequence
 from typing import Never
 
 from argparse_type_helper import (
@@ -52,9 +53,9 @@ class MyArgs:
     # `X | None` (e.g. `float | None`) is also supported — the non-None type is used.
     nullable_ratio: float | None = targ(Flag, default=None)
     """type is inferred as float from `float | None`."""
-    # For `list[X]` with `nargs`, the element type is inferred automatically.
-    numbers: list[int] = targ(Flag, nargs="+", default=[])
-    """type is inferred as int from `list[int]` when nargs is set."""
+    # For `Sequence[X]` (or `list[X]`) with `nargs`, the element type is inferred automatically.
+    numbers: Sequence[int] = targ(Flag, nargs="+", default=[])
+    """type is inferred as int from `Sequence[int]` when nargs is set."""
     # You can always override inference with an explicit `type=`.
     custom_type: float = targ(Flag, type=lambda x: round(float(x), 1), default=3.14)
     """explicit type= always takes priority over inference."""

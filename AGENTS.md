@@ -125,7 +125,7 @@ All internal modules use `_` prefix to signal they are not public API. All publi
   2. Has `action` → skip inference (actions handle their own types)
   3. `bool` / `bool | None` → skip inference (require explicit `action="store_true/store_false"`)
   4. `X | None` / `Optional[X]` where X is a non-bool callable → use X
-  5. `list[X]` etc. with `nargs` set → use element type X
+  5. `list[X]` / `Sequence[X]` etc. with `nargs` set → use element type X (`Sequence` is recommended over `list`)
   6. Bare callable (`int`, `str`, `float`, …) excluding `bool` → use itself
   7. Anything else (`int | str`, etc.) → skip inference
 - Group references use type annotations: `db: DbOptions` where `DbOptions` is a `@tgroup` class.
