@@ -21,28 +21,12 @@ pip install argparse-type-helper
 
 ## Features
 
-- **Class-based schema**
-  Bundle all your arguments in a single `@targs`-decorated class.
-- **Identical API**
-  Each field uses the same parameters as `argparse.add_argument` (`help`, `action`, `nargs`, etc.).
-- **Automatic registration**
-  One call to `register_targs(parser, YourArgs)` wires up all arguments on your `ArgumentParser`.
-- **Quick parser creation**
-  `create_parser(YourArgs)` creates and registers in one step, with description auto-filled from the class docstring.
-- **Smart type inference**
-  Automatically infers `type` from type hints — including `X | None`, `Optional[X]`, `Sequence[X]`/`list[X]` with `nargs`, and bare types like `int`/`float`/`str`. Skips `bool` (use `action="store_true/store_false"` instead).
-- **Typed extraction**
-  After `parse_args()`, call `extract_targs()` to get a fully-typed instance of your class.
-- **Hybrid usage**
-  Mix native `parser.add_argument(...)` calls with class-based definitions in the same parser.
-- **Docstring-driven help**
-  Use docstrings everywhere — on arguments (as help text), on classes (as parser/group/subcommand descriptions). Your IDE picks them up too.
-- **Argument groups** (`@tgroup`)
-  Organize arguments into groups for cleaner `--help` output.
-- **Mutually exclusive groups** (`@texclusive`)
-  Define arguments that cannot be used together.
-- **Subcommands** (`@tsubcommands`)
-  Define subcommands using class inheritance with full type safety and `isinstance`/`match` support.
+- **Familiar API** — Same parameters as `argparse.add_argument` (`help`, `action`, `nargs`, etc.), with optional `create_parser()` shortcut.
+- **Type inference** — Automatically infers `type=` from hints (`X | None`, `Sequence[X]`, bare `int`/`float`/`str`). Skips `bool`.
+- **Docstring-driven help** — Attribute docstrings → help text, class docstrings → descriptions. IDE-friendly.
+- **Argument groups & exclusion** — `@tgroup` for groups, `@texclusive` for mutually exclusive args.
+- **Subcommands** — `@tsubcommands` with class inheritance, `isinstance`/`match` support.
+- **Hybrid usage** — Mix `@targs` classes with native `parser.add_argument()` freely.
 
 ## Usage
 

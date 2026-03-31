@@ -54,8 +54,8 @@ uv run python tests/example_subcommands.py
 ### Auto-Documentation
 The example scripts are synced to the README.md using MARKDOWN-AUTO-DOCS. After updating examples, run the following command to update the README:
 ```bash
-npm i -g markdown-auto-docs  # Install globally if not already installed
-markdown-auto-docs -c code-block -o ./README.md
+npm i -g markdown-autodocs  # Install globally if not already installed
+markdown-autodocs -c code-block -o ./README.md
 ```
 
 ## High-Level Architecture
