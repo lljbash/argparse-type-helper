@@ -99,16 +99,32 @@ class MyArgs:
         Flag("-d"), action="store_true", help="Another example boolean flag."
     )
 
+    # Type is automatically inferred from the type hint.
+    # For `int`, `float`, `str`, etc., no need to specify `type=`.
     default_type: int = targ(
         Flag,
         default=42,
-        help="if type is not specified, it defaults to the type hint. (type=int in this case)",
+        help="type is inferred from the type hint (type=int in this case).",
     )
+    # `X | None` (e.g. `float | None`) is also supported — the non-None type is used.
+    nullable_ratio: float | None = targ(
+        Flag,
+        default=None,
+        help="type is inferred as float from `float | None`.",
+    )
+    # For `list[X]` with `nargs`, the element type is inferred automatically.
+    numbers: list[int] = targ(
+        Flag,
+        nargs="+",
+        default=[],
+        help="type is inferred as int from `list[int]` when nargs is set.",
+    )
+    # You can always override inference with an explicit `type=`.
     custom_type: float = targ(
         Flag,
         type=lambda x: round(float(x), 1),
         default=3.14,
-        help="You can also specify a custom type",
+        help="explicit type= always takes priority over inference.",
     )
 
     docstring_as_help: str = targ(Flag, default="default value")
@@ -286,6 +302,8 @@ if __name__ == "__main__":
             print(f"Pulling from {r}, rebase={rb}")
         case None:
             print("No command specified")
+        case _:
+            pass
 ```
 <!-- MARKDOWN-AUTO-DOCS:END -->
 
