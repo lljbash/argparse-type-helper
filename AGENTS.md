@@ -8,6 +8,7 @@ This repository contains a lightweight Python library that provides type-hinted 
 2. **When encountering difficulties, ask how to proceed** - If execution becomes blocked or unclear, use the ask_user tool to ask what to do rather than stopping work.
 3. **Update README and AGENTS.md** - After making changes to the codebase, always update the README.md and this AGENTS.md file to reflect your work. Keep these files in sync with actual implementation.
 4. **Communicate in the user's language** - Respond and communicate in the same language the user is using. If they write in Chinese, respond in Chinese. If they write in English, respond in English.
+5. **Always use `uv run`** - Never use bare `python3` or `pip`. Always use `uv run python`, `uv run pytest`, etc. for all Python commands.
 
 ## Build, Test, and Lint Commands
 
@@ -61,47 +62,54 @@ markdown-auto-docs -c code-block -o ./README.md
 
 **Core Problem:** `argparse` doesn't integrate well with type hints. This library bridges that gap by allowing you to define arguments using dataclass-like syntax with full type support, while remaining compatible with standard `argparse`.
 
-**Design Pattern - Five Main Components:**
+**Design Pattern — Six Internal Modules:**
 
-1. **Argument Definition** (`targ()` + `@targs` decorator)
-   - `targ()`: Function that creates `TArg` configuration objects containing all argument metadata
-   - `@targs`: Class decorator that transforms a regular class into a typed arguments container
-   - `Name` and `Flag`: Marker classes/dataclasses that indicate positional vs optional arguments
+All internal modules use `_` prefix to signal they are not public API. All public symbols are exported via `__init__.py`.
 
-2. **Argument Groups** (`@tgroup` + `@texclusive`)
-   - `@tgroup("title")`: Decorator that marks a class as an argument group. Internally applies `@targs` + stores group metadata (title, description).
-   - `@texclusive(required=...)`: Decorator for mutually exclusive argument groups.
-   - Group classes are defined at module level and referenced via type annotations in `@targs` classes.
-   - After extraction, group attributes provide nested access (e.g., `my_args.db.host`).
+1. **`_types.py`** — Core types and argument definition
+   - `Name`, `Flag`: Marker classes for positional vs optional arguments
+   - `TArg`: Dataclass holding all argument metadata, with `__set_name__` descriptor protocol
+   - `Unset`: Sentinel type for unset optional values
+   - `targ()`: Function that creates `TArg` configuration objects
+   - `post_init`: Decorator for post-extraction validation hooks
+   - `get_targs()`, `check_and_maybe_init_targs_class()`: Internal helpers shared by decorators and registry
 
-3. **Subcommands** (`@tsubcommands`)
-   - `@tsubcommands`: Decorator that marks a class as a subcommands base.
-   - Subcommands are `@targs` classes that inherit from the `@tsubcommands` base class.
-   - Subcommands are discovered automatically via `__subclasses__()`.
-   - After extraction, `isinstance` and pattern matching work for type narrowing.
+2. **`_decorators.py`** — Class decorators
+   - `@targs`: Transforms a class into a typed arguments container (generates `__init__`, `__repr__`)
+   - `@tgroup`: Marks a class as an argument group (title/description from docstring or params)
+   - `@texclusive`: Marks a class as a mutually exclusive group
+   - `@tsubcommands`: Marks a class as a subcommands base
+   - Detection helpers: `_is_tgroup_class()`, `_is_texclusive_class()`, `_is_tsubcommands_class()`
+   - `_scan_special_attrs()`: Discovers group/subcommand references via type annotations
 
-4. **Registration** (`register_targs()`)
-   - Takes a class and an `ArgumentParser`
-   - Registers regular targs, then groups (`add_argument_group`/`add_mutually_exclusive_group`), then subcommands (`add_subparsers`)
-   - Recursively handles subcommands (which can have their own groups)
-   - Automatically infers type from type hints if not specified
-   - Uses docstrings as help text if `help` parameter not provided
+3. **`_registry.py`** — Parser registration and extraction
+   - `register_targs(parser, cls)`: Wires up all arguments on an `ArgumentParser`
+   - `extract_targs(args, cls)`: Reconstructs a typed instance from parsed `Namespace`
+   - `create_parser(cls, ...)`: Creates an `ArgumentParser` and registers in one step
 
-5. **Extraction** (`extract_targs()`)
-   - Takes parsed `Namespace` from `parser.parse_args()` and the argument class
-   - Reconstructs a fully-typed instance of your arguments class
-   - Recursively extracts group instances (nested access)
-   - Identifies chosen subcommand and extracts its typed instance
-   - Maps argument destinations (with dash-to-underscore conversion) back to class attributes
+4. **`_inference.py`** — Type inference
+   - `infer_type_from_hint()`: Infers `type=` from type hints (`X | None`, `list[X]`, bare types, etc.)
+   - `_get_union_args()`: Helper to extract union member types
+
+5. **`_docstring.py`** — Docstring parsing
+   - `DocString`: Frozen dataclass with `title`, `description`, `full` property, and `parse()` classmethod
+   - Splitting rule: first paragraph → title, rest → description
+
+6. **`_utils.py`** — Shared utilities
+   - `Sentry`: Pattern where a value can be either a type class or an instance
+   - `logger`: Module-level logger
+   - `copy_signature()`: Signature-preserving decorator helper
+   - `get_attr_docstrings()`: AST-based attribute docstring extraction
 
 **Key Technical Details:**
 
-- **Sentry Pattern** (utils.py): A clever pattern where a value can be either a type class OR an instance. Used for marking unset optional values without requiring special sentinels.
+- **Sentry Pattern** (`_utils.py`): A clever pattern where a value can be either a type class OR an instance. Used for marking unset optional values without requiring special sentinels.
 - **Descriptor Protocol** (`TArg.__set_name__`): Auto-registers argument configs when the class is created, no manual tracking needed.
 - **Post-init Hooks** (`@post_init` decorator): Allows validation logic after argument extraction.
-- **Docstring Extraction** (utils.py): Uses AST parsing to extract docstrings from attributes and use them as help text.
+- **Docstring Extraction** (`_utils.py`): Uses AST parsing with `textwrap.dedent` to extract docstrings from attributes. Works for both module-level and function-scoped (indented) classes.
+- **DocString Splitting** (`_docstring.py`): Uses `inspect.cleandoc()` then splits on `"\n\n"` (first blank line). First paragraph = title, rest = description. Applied consistently to `@targs`, `@tgroup`, `@tsubcommands`, and subcommand classes.
+- **Mutable Default Safety**: `list`, `dict`, and `set` defaults are shallow-copied in the generated `__init__` to prevent sharing across instances.
 - **Decorator Consistency**: All three decorators (`@tgroup`, `@texclusive`, `@tsubcommands`) support dual calling styles: bare `@decorator` and parameterized `@decorator(...)`. Title can be passed as the first positional argument or via keyword. Note: `@texclusive` does not support `title`/`description` — this is a limitation of `argparse.MutuallyExclusiveGroup`.
-- **Docstring Extraction** (utils.py): Uses AST parsing with `textwrap.dedent` to extract docstrings from attributes. Works for both module-level and function-scoped (indented) classes.
 
 ## Key Conventions
 
@@ -112,7 +120,7 @@ markdown-auto-docs -c code-block -o ./README.md
 
 ### Type Hint Requirements
 - All `targ()` fields **must** have a type hint.
-- **Type inference rules** (in `_infer_type_from_hint()`):
+- **Type inference rules** (in `infer_type_from_hint()`):
   1. User explicit `type=` → always used (highest priority)
   2. Has `action` → skip inference (actions handle their own types)
   3. `bool` / `bool | None` → skip inference (require explicit `action="store_true/store_false"`)
@@ -137,9 +145,13 @@ markdown-auto-docs -c code-block -o ./README.md
 - **basedpyright strict mode** for type checking
 
 ### Module Organization
-- `__init__.py`: Public API exports (Name, Flag, targ, targs, tgroup, texclusive, tsubcommands, post_init, register_targs, extract_targs)
-- `targs.py`: Core logic (TArg dataclass, all decorators, registration/extraction)
-- `utils.py`: Helper utilities (Sentry pattern, logger, AST-based docstring extraction)
+- `__init__.py`: Public API exports (Name, Flag, DocString, targ, targs, tgroup, texclusive, tsubcommands, post_init, register_targs, extract_targs, create_parser)
+- `_types.py`: Core types, TArg, targ(), post_init, constants
+- `_decorators.py`: All class decorators (@targs, @tgroup, @texclusive, @tsubcommands)
+- `_registry.py`: register_targs, extract_targs, create_parser
+- `_inference.py`: Type inference logic
+- `_docstring.py`: DocString dataclass with parsing logic
+- `_utils.py`: Sentry pattern, logger, copy_signature, attribute docstring extraction
 
 ### Internal Attributes
 - `_targs` / `_targs_flag`: Per-class targs dict and initialization marker
@@ -155,4 +167,6 @@ markdown-auto-docs -c code-block -o ./README.md
 - `test_groups.py`: Argument groups and mutually exclusive groups
 - `test_subcommands.py`: Subcommands with inheritance, groups inside subcommands, pattern matching
 - `test_type_inference.py`: Type inference expansion (X | None, Optional[X], list[X]+nargs, bool protection)
+- `test_docstring.py`: DocString.parse() unit tests (single/multi/empty/whitespace edge cases)
+- `test_create_parser.py`: create_parser, docstring→title/desc split, mutable defaults, robustness
 - Example files: `example.py`, `example_groups.py`, `example_subcommands.py` (synced to README via MARKDOWN-AUTO-DOCS)

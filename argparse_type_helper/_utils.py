@@ -41,7 +41,14 @@ def copy_signature_remove_first[**P, R1, R2, F](
 
 
 def _get_attr_docstrings_impl(cls: type[object]) -> dict[str, str]:
-    source = textwrap.dedent(inspect.getsource(cls))
+    # inspect.getsource may fail for dynamically generated classes, REPL-defined
+    # classes, or C extension classes.  Since docstring extraction is a best-effort
+    # enhancement (used for auto-generating help text), we silently return an empty
+    # dict rather than crashing.
+    try:
+        source = textwrap.dedent(inspect.getsource(cls))
+    except (OSError, TypeError):
+        return {}
     tree = ast.parse(source)
     classdef = tree.body[0]
     assert isinstance(classdef, ast.ClassDef), "Expected a class definition"

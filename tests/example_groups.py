@@ -1,9 +1,7 @@
-import argparse
-
 from argparse_type_helper import (
     Flag,
+    create_parser,
     extract_targs,
-    register_targs,
     targ,
     targs,
     texclusive,
@@ -12,10 +10,14 @@ from argparse_type_helper import (
 
 
 # Use @tgroup to organize related arguments into named groups.
-# Groups affect --help display and provide nested access after extraction.
-@tgroup("Database Options")
+# The docstring's first paragraph becomes the group title,
+# and the rest becomes the group description.
+@tgroup()
 class DbOptions:
-    """Database connection settings"""
+    """Database Options
+
+    Database connection settings used by the application.
+    """
 
     host: str = targ(Flag, default="localhost")
     """Database host"""
@@ -27,19 +29,26 @@ class DbOptions:
 @texclusive(required=True)
 class VerbosityMode:
     verbose: bool = targ(Flag("-v"), action="store_true")
+    """Enable verbose output."""
     quiet: bool = targ(Flag("-q"), action="store_true")
+    """Suppress all output."""
 
 
 # Reference groups and exclusive groups via type annotations.
 @targs
 class MyArgs:
+    """Groups and exclusive example.
+
+    Demonstrates argument groups and mutually exclusive arguments.
+    """
+
     db: DbOptions
     mode: VerbosityMode
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Groups and exclusive example.")
-    register_targs(parser, MyArgs)
+    # create_parser auto-fills description from the class docstring
+    parser = create_parser(MyArgs)
 
     args = parser.parse_args()
     my_args = extract_targs(args, MyArgs)

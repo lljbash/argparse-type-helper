@@ -16,14 +16,16 @@ pip install argparse-type-helper
   Each field uses the same parameters as `argparse.add_argument` (`help`, `action`, `nargs`, etc.).
 - **Automatic registration**
   One call to `register_targs(parser, YourArgs)` wires up all arguments on your `ArgumentParser`.
+- **Quick parser creation**
+  `create_parser(YourArgs)` creates and registers in one step, with description auto-filled from the class docstring.
 - **Smart type inference**
   Automatically infers `type` from type hints — including `X | None`, `Optional[X]`, `list[X]` with `nargs`, and bare types like `int`/`float`/`str`. Skips `bool` (use `action="store_true/store_false"` instead).
 - **Typed extraction**
   After `parse_args()`, call `extract_targs()` to get a fully-typed instance of your class.
 - **Hybrid usage**
   Mix native `parser.add_argument(...)` calls with class-based definitions in the same parser.
-- **Docstring support**
-  Use docstrings to automatically generate help text for your arguments.
+- **Docstring-driven help**
+  Use docstrings everywhere — on arguments (as help text), on classes (as parser/group/subcommand descriptions). Your IDE picks them up too.
 - **Argument groups** (`@tgroup`)
   Organize arguments into groups for cleaner `--help` output.
 - **Mutually exclusive groups** (`@texclusive`)
@@ -49,9 +51,9 @@ from typing import Never
 from argparse_type_helper import (
     Flag,
     Name,
+    create_parser,
     extract_targs,
     post_init,
-    register_targs,
     targ,
     targs,
 )
@@ -60,72 +62,48 @@ from argparse_type_helper import (
 # Define your typed arguments as a targ class
 @targs
 class MyArgs:
-    # This example will show the common usage of targ.
+    """Process some data arguments.
 
-    positional: str = targ(Name, help="A positional argument (positional).")
-    custom_name_pos: str = targ(
-        "my_positional", help="A custom named positional argument."
-    )
+    A comprehensive example showing common targ usage patterns
+    including positional/optional arguments, type inference, and docstrings.
+    """
 
-    optional: str = targ(Flag, help="An optional argument (--optional).")
-    optional_dash: str = targ(
-        Flag, help="underscore is replaced with dash (--optional-dash)."
-    )
-    optional_short: str = targ(
-        Flag("-s"), help="You can also add a short name (-s, --optional-short)."
-    )
-    custom_name_opt: str = targ(
-        "--my-optional",
-        help="A custom named optional argument.",
-    )
-    custom_name_opt_short: str = targ(
-        ("-c", "--my-short-optional"),
-        help="A custom named optional argument with a short name. (note the tuple)",
-    )
+    positional: str = targ(Name)
+    """A positional argument (positional)."""
+    custom_name_pos: str = targ("my_positional")
+    """A custom named positional argument."""
 
-    options: list[str] = targ(
-        Flag,
-        action="extend",
-        nargs="+",
-        default=[],
-        help="All options (`help`, `action`, `nargs`, etc.) are the same as argparse.",
-    )
-    choices: str = targ(
-        Flag,
-        choices=["option1", "option2", "option3"],
-        help="Another example argument with choices.",
-    )
-    flag: bool = targ(
-        Flag("-d"), action="store_true", help="Another example boolean flag."
-    )
+    optional: str = targ(Flag)
+    """An optional argument (--optional)."""
+    optional_dash: str = targ(Flag)
+    """Underscore is replaced with dash (--optional-dash)."""
+    optional_short: str = targ(Flag("-s"))
+    """You can also add a short name (-s, --optional-short)."""
+    custom_name_opt: str = targ("--my-optional")
+    """A custom named optional argument."""
+    custom_name_opt_short: str = targ(("-c", "--my-short-optional"))
+    """A custom named optional argument with a short name. (note the tuple)"""
+
+    options: list[str] = targ(Flag, action="extend", nargs="+", default=[])
+    """All options (`help`, `action`, `nargs`, etc.) are the same as argparse."""
+    choices: str = targ(Flag, choices=["option1", "option2", "option3"])
+    """Another example argument with choices."""
+    flag: bool = targ(Flag("-d"), action="store_true")
+    """Another example boolean flag."""
 
     # Type is automatically inferred from the type hint.
     # For `int`, `float`, `str`, etc., no need to specify `type=`.
-    default_type: int = targ(
-        Flag,
-        default=42,
-        help="type is inferred from the type hint (type=int in this case).",
-    )
+    default_type: int = targ(Flag, default=42)
+    """type is inferred from the type hint (type=int in this case)."""
     # `X | None` (e.g. `float | None`) is also supported — the non-None type is used.
-    nullable_ratio: float | None = targ(
-        Flag,
-        default=None,
-        help="type is inferred as float from `float | None`.",
-    )
+    nullable_ratio: float | None = targ(Flag, default=None)
+    """type is inferred as float from `float | None`."""
     # For `list[X]` with `nargs`, the element type is inferred automatically.
-    numbers: list[int] = targ(
-        Flag,
-        nargs="+",
-        default=[],
-        help="type is inferred as int from `list[int]` when nargs is set.",
-    )
+    numbers: list[int] = targ(Flag, nargs="+", default=[])
+    """type is inferred as int from `list[int]` when nargs is set."""
     # You can always override inference with an explicit `type=`.
-    custom_type: float = targ(
-        Flag,
-        type=lambda x: round(float(x), 1),
-        default=3.14,
-        help="explicit type= always takes priority over inference.",
-    )
+    custom_type: float = targ(Flag, type=lambda x: round(float(x), 1), default=3.14)
+    """explicit type= always takes priority over inference."""
 
     docstring_as_help: str = targ(Flag, default="default value")
     """
@@ -151,12 +129,8 @@ class MyParser(argparse.ArgumentParser):
 
 
 if __name__ == "__main__":
-    # Create a parser
-    parser = MyParser(description="Process some data arguments.")
-
-    # Register the targs with the parser
-    # verbose=True will print the registered arguments
-    register_targs(parser, MyArgs, verbose=True)
+    # Create a parser using create_parser (description from class docstring)
+    parser = create_parser(MyArgs, parser_class=MyParser, verbose=True)
 
     # Hybrid usage example
     parser.add_argument("--version", action="version", version="MyArgs 1.0.0")
@@ -177,12 +151,10 @@ Use `@tgroup` to organize related arguments into groups. Use `@texclusive` to de
 <!-- MARKDOWN-AUTO-DOCS:START (CODE:src=./tests/example_groups.py) -->
 <!-- The below code snippet is automatically added from ./tests/example_groups.py -->
 ```py
-import argparse
-
 from argparse_type_helper import (
     Flag,
+    create_parser,
     extract_targs,
-    register_targs,
     targ,
     targs,
     texclusive,
@@ -191,10 +163,14 @@ from argparse_type_helper import (
 
 
 # Use @tgroup to organize related arguments into named groups.
-# Groups affect --help display and provide nested access after extraction.
-@tgroup("Database Options")
+# The docstring's first paragraph becomes the group title,
+# and the rest becomes the group description.
+@tgroup()
 class DbOptions:
-    """Database connection settings"""
+    """Database Options
+
+    Database connection settings used by the application.
+    """
 
     host: str = targ(Flag, default="localhost")
     """Database host"""
@@ -206,19 +182,26 @@ class DbOptions:
 @texclusive(required=True)
 class VerbosityMode:
     verbose: bool = targ(Flag("-v"), action="store_true")
+    """Enable verbose output."""
     quiet: bool = targ(Flag("-q"), action="store_true")
+    """Suppress all output."""
 
 
 # Reference groups and exclusive groups via type annotations.
 @targs
 class MyArgs:
+    """Groups and exclusive example.
+
+    Demonstrates argument groups and mutually exclusive arguments.
+    """
+
     db: DbOptions
     mode: VerbosityMode
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Groups and exclusive example.")
-    register_targs(parser, MyArgs)
+    # create_parser auto-fills description from the class docstring
+    parser = create_parser(MyArgs)
 
     args = parser.parse_args()
     my_args = extract_targs(args, MyArgs)
@@ -230,10 +213,13 @@ if __name__ == "__main__":
 
 The `@tgroup` decorator supports multiple calling styles:
 ```python
-@tgroup                                  # title defaults to class name
-@tgroup("Custom Title")                  # title as positional arg
-@tgroup(title="...", description="...")   # keyword args
+@tgroup                                  # title/description from docstring
+@tgroup()                                # same — title/description from docstring
+@tgroup("Custom Title")                  # explicit title, description from docstring
+@tgroup(title="...", description="...")   # fully explicit
 ```
+
+Docstring splitting rule: the first paragraph (up to the first blank line) becomes the **title**, the rest becomes the **description**. Explicit `title`/`description` parameters always override docstring values.
 
 > **Note:** Unlike `@tgroup` and `@tsubcommands`, `@texclusive` does not support `title` or `description` parameters. This is a limitation of `argparse.MutuallyExclusiveGroup` itself.
 
@@ -244,13 +230,11 @@ Use `@tsubcommands` to define subcommands via class inheritance. Each subcommand
 <!-- MARKDOWN-AUTO-DOCS:START (CODE:src=./tests/example_subcommands.py) -->
 <!-- The below code snippet is automatically added from ./tests/example_subcommands.py -->
 ```py
-import argparse
-
 from argparse_type_helper import (
     Flag,
     Name,
+    create_parser,
     extract_targs,
-    register_targs,
     targ,
     targs,
     tsubcommands,
@@ -258,38 +242,62 @@ from argparse_type_helper import (
 
 
 # Use @tsubcommands to define a base class for subcommands.
-# Subcommands are @targs classes that inherit from this base.
+# The docstring's first paragraph becomes the subparser title,
+# and the rest becomes the subparser description.
 @tsubcommands
 class Commands:
-    """Available commands"""
+    """Available commands
+
+    Choose one of the following git-like commands to run.
+    """
 
 
+# Each subcommand's docstring first paragraph is shown in the
+# top-level help listing; the full docstring is used in the
+# subcommand's own --help.
 @targs
 class push(Commands):
-    """Push changes to remote"""
+    """Push changes to remote
+
+    Upload local commits to the specified remote repository.
+    Supports force push with the -f flag.
+    """
 
     remote: str = targ(Name, nargs="?", default="origin")
+    """Remote name to push to."""
     force: bool = targ(Flag("-f"), action="store_true")
+    """Force push even if remote has diverged."""
 
 
 @targs
 class pull(Commands):
-    """Pull changes from remote"""
+    """Pull changes from remote
+
+    Download and integrate commits from the specified remote.
+    """
 
     remote: str = targ(Name, nargs="?", default="origin")
+    """Remote name to pull from."""
     rebase: bool = targ(Flag, action="store_true")
+    """Rebase instead of merge."""
 
 
 # Reference the subcommands base via type annotation.
 @targs
 class GitArgs:
+    """A git-like CLI tool.
+
+    Demonstrates subcommand support with typed arguments.
+    """
+
     verbose: bool = targ(Flag("-v"), action="store_true")
+    """Enable verbose output."""
     command: Commands
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Subcommands example.")
-    register_targs(parser, GitArgs)
+    # create_parser auto-fills description from class docstring
+    parser = create_parser(GitArgs)
 
     args = parser.parse_args()
     my_args = extract_targs(args, GitArgs)
@@ -309,14 +317,53 @@ if __name__ == "__main__":
 
 The `@tsubcommands` decorator supports:
 ```python
-@tsubcommands                                        # basic
-@tsubcommands("Commands")                            # title as positional arg
+@tsubcommands                                        # title/description from docstring
+@tsubcommands("Commands")                            # explicit title
 @tsubcommands(required=True)                         # require a subcommand
 @tsubcommands(title="...", description="...", required=True)
 ```
+
+Subcommand docstrings follow the same splitting rule: the first paragraph becomes the subcommand's **help** text (shown in the parent `--help` listing), while the full docstring becomes the subcommand's own parser **description** (shown in `<subcommand> --help`).
 
 Type narrowing with `isinstance`:
 ```python
 if isinstance(my_args.command, push):
     print(my_args.command.remote)  # type-safe!
 ```
+
+## Quick Parser Creation
+
+Use `create_parser()` to create an `ArgumentParser` and register your `@targs` class in one step:
+
+```python
+from argparse_type_helper import create_parser, extract_targs
+
+parser = create_parser(MyArgs)                          # description from docstring
+parser = create_parser(MyArgs, parser_class=MyParser)   # custom parser class
+parser = create_parser(MyArgs, description="Override")  # explicit description
+
+# You can still add more arguments after create_parser
+parser.add_argument("--version", action="version", version="1.0")
+
+args = parser.parse_args()
+my_args = extract_targs(args, MyArgs)
+```
+
+`create_parser` accepts the same keyword arguments as `ArgumentParser` (`prog`, `description`, `formatter_class`, etc.), plus `parser_class` and `verbose`.
+
+## Docstring-Driven Help
+
+Docstrings serve double duty: they provide IDE tooltips **and** CLI help text. The library uses a consistent splitting rule across all decorators:
+
+- **First paragraph** (up to the first blank line) → **title** / **help**
+- **Remaining text** → **description**
+
+| Decorator | First paragraph used as | Rest used as |
+|---|---|---|
+| `@targs` class | `parser.description` (full docstring) | — |
+| `@tgroup` class | group title | group description |
+| `@tsubcommands` class | subparser title | subparser description |
+| Subcommand class | `help=` in parent listing | sub-parser `description` (full docstring) |
+| Attribute | `help=` text (full docstring) | — |
+
+Explicit `title=`, `description=`, or `help=` parameters always take priority over docstring values.

@@ -387,7 +387,7 @@ def test_missing_type_hint_raises():
 
 def test_inner_class_docstring_extraction():
     """textwrap.dedent fix: docstring extraction works for indented classes."""
-    from argparse_type_helper.utils import get_attr_docstrings
+    from argparse_type_helper._utils import get_attr_docstrings
 
     @targs
     class InnerArgs:
