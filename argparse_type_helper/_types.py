@@ -187,3 +187,24 @@ def check_and_maybe_init_targs_class(
 def get_targs(cls: type[object], *, check: bool = True) -> dict[str, TArg]:
     check_and_maybe_init_targs_class(cls, raise_instead_of_init=check)
     return getattr(cls, TARGS_ATTR)
+
+
+# ---------------------------------------------------------------------------
+# Detection helpers — shared by _decorators and _registry
+# ---------------------------------------------------------------------------
+
+
+def is_tgroup_class(cls: object) -> bool:
+    return isinstance(cls, type) and getattr(cls, TGROUP_FLAG_ATTR, False) is True
+
+
+def is_texclusive_class(cls: object) -> bool:
+    return isinstance(cls, type) and getattr(cls, TEXCLUSIVE_FLAG_ATTR, False) is True
+
+
+def is_tsubcommands_class(cls: object) -> bool:
+    return isinstance(cls, type) and getattr(cls, TSUBCOMMANDS_FLAG_ATTR, False) is True
+
+
+def is_group_like(cls: object) -> bool:
+    return is_tgroup_class(cls) or is_texclusive_class(cls)

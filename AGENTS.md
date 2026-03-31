@@ -73,13 +73,13 @@ All internal modules use `_` prefix to signal they are not public API. All publi
    - `targ()`: Function that creates `TArg` configuration objects
    - `post_init`: Decorator for post-extraction validation hooks
    - `get_targs()`, `check_and_maybe_init_targs_class()`: Internal helpers shared by decorators and registry
+   - Detection helpers: `is_tgroup_class()`, `is_texclusive_class()`, `is_tsubcommands_class()`, `is_group_like()` — shared by `_decorators` and `_registry`
 
 2. **`_decorators.py`** — Class decorators
    - `@targs`: Transforms a class into a typed arguments container (generates `__init__`, `__repr__`)
    - `@tgroup`: Marks a class as an argument group (title/description from docstring or params)
    - `@texclusive`: Marks a class as a mutually exclusive group
    - `@tsubcommands`: Marks a class as a subcommands base
-   - Detection helpers: `_is_tgroup_class()`, `_is_texclusive_class()`, `_is_tsubcommands_class()`
    - `_scan_special_attrs()`: Discovers group/subcommand references via type annotations
 
 3. **`_registry.py`** — Parser registration and extraction

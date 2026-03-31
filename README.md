@@ -2,6 +2,17 @@
 
 A lightweight helper that lets you leverage type hints with `argparse`.
 
+## Table of Contents
+
+- [Installation](#installation)
+- [Features](#features)
+- [Usage](#usage)
+- [Parser Setup](#parser-setup)
+- [Argument Groups](#argument-groups)
+- [Subcommands](#subcommands)
+- [Docstring-Driven Help](#docstring-driven-help)
+- [Why not typed-argparse?](#why-not-typed-argparse)
+
 ## Installation
 
 ```bash
@@ -32,12 +43,6 @@ pip install argparse-type-helper
   Define arguments that cannot be used together.
 - **Subcommands** (`@tsubcommands`)
   Define subcommands using class inheritance with full type safety and `isinstance`/`match` support.
-
-## Why not [typed-argparse](https://typed-argparse.github.io/typed-argparse/)?
-
-typed-argparse is a great library, but it replaces the familiar `argparse.add_argument` API with its own argument-definition interface, which can be a hurdle when integrating into an existing codebase.
-
-argparse-type-helper, by contrast, is a simple helper that allows you to use type hints with argparse with minimal learning curve. It uses the same `argparse` API you’re already familiar with, and you can even mix native `argparse` usage with class-based definitions in the same parser.
 
 ## Usage
 
@@ -144,12 +149,45 @@ if __name__ == "__main__":
 ```
 <!-- MARKDOWN-AUTO-DOCS:END -->
 
-> **Tip:** The example above uses `create_parser` for convenience. You can also create the parser yourself and register with `register_targs`:
-> ```python
-> parser = MyParser(description="Process some data arguments.")
-> register_targs(parser, MyArgs, verbose=True)
-> ```
-> This is useful when you need full control over parser construction (custom `formatter_class`, `parents`, `epilog`, etc.).
+## Parser Setup
+
+There are two ways to set up a parser:
+
+**`create_parser()`** — one-step convenience function:
+
+```python
+from argparse_type_helper import create_parser, extract_targs
+
+parser = create_parser(MyArgs)                          # description from docstring
+parser = create_parser(MyArgs, parser_class=MyParser)   # custom parser class
+parser = create_parser(MyArgs, description="Override")  # explicit description
+
+# You can still add more arguments after create_parser
+parser.add_argument("--version", action="version", version="1.0")
+
+args = parser.parse_args()
+my_args = extract_targs(args, MyArgs)
+```
+
+`create_parser` accepts the same keyword arguments as `ArgumentParser` (`prog`, `description`, `formatter_class`, etc.), plus `parser_class` and `verbose`. It defaults to `RawDescriptionHelpFormatter` so docstring formatting is preserved in `--help`.
+
+**`register_targs()`** — separate parser creation and registration:
+
+```python
+import argparse
+from argparse_type_helper import register_targs, extract_targs
+
+parser = argparse.ArgumentParser(
+    description="My tool.",
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+)
+register_targs(parser, MyArgs, verbose=True)
+
+args = parser.parse_args()
+my_args = extract_targs(args, MyArgs)
+```
+
+Use `register_targs` when you need full control over parser construction. Note that `register_targs` does not change the parser's `formatter_class` — if you want newlines preserved in descriptions, pass `RawDescriptionHelpFormatter` yourself.
 
 ## Argument Groups
 
@@ -338,45 +376,6 @@ if isinstance(my_args.command, push):
     print(my_args.command.remote)  # type-safe!
 ```
 
-## Quick Parser Creation
-
-There are two ways to set up a parser:
-
-**`create_parser()`** — one-step convenience function:
-
-```python
-from argparse_type_helper import create_parser, extract_targs
-
-parser = create_parser(MyArgs)                          # description from docstring
-parser = create_parser(MyArgs, parser_class=MyParser)   # custom parser class
-parser = create_parser(MyArgs, description="Override")  # explicit description
-
-# You can still add more arguments after create_parser
-parser.add_argument("--version", action="version", version="1.0")
-
-args = parser.parse_args()
-my_args = extract_targs(args, MyArgs)
-```
-
-`create_parser` accepts the same keyword arguments as `ArgumentParser` (`prog`, `description`, `formatter_class`, etc.), plus `parser_class` and `verbose`. It defaults to `RawDescriptionHelpFormatter` so docstring formatting is preserved in `--help`.
-
-**`register_targs()`** — separate parser creation and registration:
-
-```python
-from argparse_type_helper import register_targs, extract_targs
-
-parser = argparse.ArgumentParser(
-    description="My tool.",
-    formatter_class=argparse.RawDescriptionHelpFormatter,
-)
-register_targs(parser, MyArgs, verbose=True)
-
-args = parser.parse_args()
-my_args = extract_targs(args, MyArgs)
-```
-
-Use `register_targs` when you need full control over parser construction. Note that `register_targs` does not change the parser's `formatter_class` — if you want newlines preserved in descriptions, pass `RawDescriptionHelpFormatter` yourself.
-
 ## Docstring-Driven Help
 
 Docstrings serve double duty: they provide IDE tooltips **and** CLI help text. The library uses a consistent splitting rule across all decorators:
@@ -395,3 +394,9 @@ Docstrings serve double duty: they provide IDE tooltips **and** CLI help text. T
 Explicit `title=`, `description=`, or `help=` parameters always take priority over docstring values.
 
 > **Note on formatting:** By default, `argparse` collapses newlines in description text. `create_parser` uses `RawDescriptionHelpFormatter` automatically so docstring formatting is preserved. If you use `register_targs` directly, pass `formatter_class=argparse.RawDescriptionHelpFormatter` to your `ArgumentParser` for the same effect. Sub-parsers (subcommands) automatically inherit the parent parser's `formatter_class`.
+
+## Why not [typed-argparse](https://typed-argparse.github.io/typed-argparse/)?
+
+typed-argparse is a great library, but it replaces the familiar `argparse.add_argument` API with its own argument-definition interface, which can be a hurdle when integrating into an existing codebase.
+
+argparse-type-helper, by contrast, is a simple helper that allows you to use type hints with argparse with minimal learning curve. It uses the same `argparse` API you’re already familiar with, and you can even mix native `argparse` usage with class-based definitions in the same parser.

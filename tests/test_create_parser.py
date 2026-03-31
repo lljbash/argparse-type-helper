@@ -307,3 +307,182 @@ def test_get_attr_docstrings_dynamic_class():
     DynClass = type("DynClass", (), {"x": 1})
     result = get_attr_docstrings(DynClass)
     assert result == {}
+
+
+# ---------------------------------------------------------------------------
+# RawDescriptionHelpFormatter default & sub-parser formatter inheritance
+# ---------------------------------------------------------------------------
+
+
+def test_create_parser_default_formatter():
+    """create_parser defaults to RawDescriptionHelpFormatter."""
+    parser = create_parser(SimpleArgs)
+    assert parser.formatter_class is argparse.RawDescriptionHelpFormatter
+
+
+def test_create_parser_explicit_formatter_respected():
+    """Explicit formatter_class overrides the default."""
+    parser = create_parser(SimpleArgs, formatter_class=argparse.HelpFormatter)
+    assert parser.formatter_class is argparse.HelpFormatter
+
+
+def test_create_parser_preserves_description_newlines(
+    capsys: pytest.CaptureFixture[str],
+):
+    """RawDescriptionHelpFormatter preserves newlines in description."""
+    parser = create_parser(SimpleArgs)
+    parser.print_help()
+    captured = capsys.readouterr()
+    # The blank line between title and description should be preserved
+    assert "A simple argument parser.\n\nThis parser does basic things." in captured.out
+
+
+@tsubcommands
+class FmtCommands:
+    """Commands"""
+
+
+@targs
+class fmt_sub(FmtCommands):
+    """Sub description
+
+    Detailed explanation here.
+    """
+
+    val: int = targ(Flag, default=0)
+
+
+@targs
+class FmtArgs:
+    cmd: FmtCommands
+
+
+def test_subparser_inherits_formatter():
+    """Sub-parsers inherit the parent parser's formatter_class."""
+    parser = create_parser(FmtArgs)
+    # The parent uses RawDescriptionHelpFormatter by default
+    assert parser.formatter_class is argparse.RawDescriptionHelpFormatter
+    # Check the sub-parser also inherited it via help output
+    args = parser.parse_args(["fmt_sub"])
+    result = extract_targs(args, FmtArgs)
+    assert isinstance(result.cmd, fmt_sub)
+
+
+def test_subparser_inherits_custom_formatter():
+    """Sub-parsers inherit the parent's formatter_class (verified via help output)."""
+
+    @tsubcommands
+    class InhCmds:
+        """Commands"""
+
+    @targs
+    class inh_sub(InhCmds):  # noqa: N801
+        """First line
+
+        Second paragraph preserved.
+        """
+
+        x: int = targ(Flag, default=0)
+
+    # create_parser uses RawDescriptionHelpFormatter by default;
+    # sub-parsers should inherit it so their descriptions keep newlines.
+    sub_parser = create_parser(inh_sub)
+    buf = io.StringIO()
+    sub_parser.print_help(buf)
+    help_text = buf.getvalue()
+    assert "First line\n\nSecond paragraph preserved." in help_text
+
+
+def test_register_targs_does_not_change_formatter():
+    """register_targs does not modify the parser's formatter_class."""
+    parser = argparse.ArgumentParser()
+    original_formatter = parser.formatter_class
+    register_targs(parser, SimpleArgs)
+    assert parser.formatter_class is original_formatter
+
+
+# ---------------------------------------------------------------------------
+# Mutable default: set
+# ---------------------------------------------------------------------------
+
+
+@targs
+class SetDefaultArgs:
+    items: set[str] = targ(Flag, type=str, default=set[str]())
+
+
+def test_mutable_default_set_independence():
+    """Each instance gets its own set, not shared reference."""
+    a = SetDefaultArgs()
+    b = SetDefaultArgs()
+    a.items.add("x")  # type: ignore[union-attr]
+    assert b.items == set()
+
+
+# ---------------------------------------------------------------------------
+# extract_targs error path
+# ---------------------------------------------------------------------------
+
+
+def test_extract_targs_missing_dest():
+    """extract_targs raises AttributeError when dest is missing from namespace."""
+    parser = create_parser(SimpleArgs)
+    args = parser.parse_args(["hello"])
+    delattr(args, "name")
+    with pytest.raises(AttributeError, match="not found in parsed args"):
+        extract_targs(args, SimpleArgs)
+
+
+# ---------------------------------------------------------------------------
+# get_targs / check_and_maybe_init_targs_class error paths
+# ---------------------------------------------------------------------------
+
+
+def test_get_targs_error_on_non_targs_class():
+    """get_targs raises TypeError on a class without @targs."""
+    from argparse_type_helper._types import get_targs
+
+    class Plain:
+        pass
+
+    with pytest.raises(TypeError, match="not a targs class"):
+        get_targs(Plain, check=True)
+
+
+# ---------------------------------------------------------------------------
+# infer_type_from_hint: additional branch coverage
+# ---------------------------------------------------------------------------
+
+
+def test_infer_bool_or_none_returns_none():
+    """bool | None should not infer to bool (bool doesn't work as argparse type)."""
+    from argparse_type_helper._inference import infer_type_from_hint
+
+    assert infer_type_from_hint(bool | None, has_nargs=False) is None
+
+
+def test_infer_multi_union_returns_none():
+    """int | str | None — ambiguous union, should return None."""
+    from argparse_type_helper._inference import infer_type_from_hint
+
+    assert infer_type_from_hint(int | str | None, has_nargs=False) is None
+
+
+def test_infer_bare_bool_returns_none():
+    """Bare bool should not be inferred (use action instead)."""
+    from argparse_type_helper._inference import infer_type_from_hint
+
+    assert infer_type_from_hint(bool, has_nargs=False) is None
+
+
+# ---------------------------------------------------------------------------
+# @tsubcommands docstring description
+# ---------------------------------------------------------------------------
+
+
+def test_tsubcommands_docstring_description(capsys: pytest.CaptureFixture[str]):
+    """The rest of the @tsubcommands docstring becomes subparser description."""
+    parser = create_parser(ArgsDocSubcommands)
+    parser.print_help()
+    captured = capsys.readouterr()
+    assert "Choose one of the available commands below." in captured.out

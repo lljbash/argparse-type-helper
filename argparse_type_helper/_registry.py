@@ -7,16 +7,16 @@ from argparse_type_helper._types import (
     TARGS_FLAG_ATTR,
     TARGS_GROUPS_ATTR,
     TARGS_SUBCOMMANDS_ATTR,
-    TEXCLUSIVE_FLAG_ATTR,
     TEXCLUSIVE_REQUIRED_ATTR,
     TGROUP_DESCRIPTION_ATTR,
-    TGROUP_FLAG_ATTR,
     TGROUP_TITLE_ATTR,
     TSUBCOMMANDS_DESCRIPTION_ATTR,
     TSUBCOMMANDS_REQUIRED_ATTR,
     TSUBCOMMANDS_TITLE_ATTR,
     TArg,
     get_targs,
+    is_texclusive_class,
+    is_tgroup_class,
 )
 from argparse_type_helper._utils import get_attr_docstrings, logger
 
@@ -25,14 +25,6 @@ __all__ = [
     "register_targs",
     "extract_targs",
 ]
-
-
-def _is_tgroup_class(cls: object) -> bool:
-    return isinstance(cls, type) and getattr(cls, TGROUP_FLAG_ATTR, False) is True
-
-
-def _is_texclusive_class(cls: object) -> bool:
-    return isinstance(cls, type) and getattr(cls, TEXCLUSIVE_FLAG_ATTR, False) is True
 
 
 def _register_single_targ(
@@ -88,13 +80,13 @@ def register_targs(
     # Register argument groups
     groups: dict[str, type] = getattr(cls, TARGS_GROUPS_ATTR, {})
     for attr, group_cls in groups.items():
-        if _is_tgroup_class(group_cls):
+        if is_tgroup_class(group_cls):
             group_title = getattr(group_cls, TGROUP_TITLE_ATTR, attr)
             group_desc = getattr(group_cls, TGROUP_DESCRIPTION_ATTR, None)
             container = parser.add_argument_group(
                 title=group_title, description=group_desc
             )
-        elif _is_texclusive_class(group_cls):
+        elif is_texclusive_class(group_cls):
             req = getattr(group_cls, TEXCLUSIVE_REQUIRED_ATTR, False)
             container = parser.add_mutually_exclusive_group(required=req)
         else:

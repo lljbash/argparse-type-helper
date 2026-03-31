@@ -20,6 +20,8 @@ from argparse_type_helper._types import (
     Unset,
     check_and_maybe_init_targs_class,
     get_targs,
+    is_group_like,
+    is_tsubcommands_class,
     targ,
 )
 from argparse_type_helper._utils import is_sentry
@@ -30,27 +32,6 @@ __all__ = [
     "texclusive",
     "tsubcommands",
 ]
-
-
-# ---------------------------------------------------------------------------
-# Detection helpers
-# ---------------------------------------------------------------------------
-
-
-def _is_tgroup_class(cls: object) -> bool:
-    return isinstance(cls, type) and getattr(cls, TGROUP_FLAG_ATTR, False) is True
-
-
-def _is_texclusive_class(cls: object) -> bool:
-    return isinstance(cls, type) and getattr(cls, TEXCLUSIVE_FLAG_ATTR, False) is True
-
-
-def _is_tsubcommands_class(cls: object) -> bool:
-    return isinstance(cls, type) and getattr(cls, TSUBCOMMANDS_FLAG_ATTR, False) is True
-
-
-def _is_group_like(cls: object) -> bool:
-    return _is_tgroup_class(cls) or _is_texclusive_class(cls)
 
 
 # ---------------------------------------------------------------------------
@@ -71,9 +52,9 @@ def _scan_special_attrs(cls: type[object]) -> tuple[dict[str, type], dict[str, t
         hint = hints.get(attr)
         if hint is None:
             continue
-        if _is_group_like(hint):
+        if is_group_like(hint):
             groups[attr] = hint
-        elif _is_tsubcommands_class(hint):
+        elif is_tsubcommands_class(hint):
             subcommands[attr] = hint
     return groups, subcommands
 
