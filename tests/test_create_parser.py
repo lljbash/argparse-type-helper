@@ -209,4 +209,3 @@ def test_register_targs_does_not_change_formatter():
     original_formatter = parser.formatter_class
     register_targs(parser, SimpleArgs)
     assert parser.formatter_class is original_formatter
-

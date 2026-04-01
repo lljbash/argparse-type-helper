@@ -112,4 +112,3 @@ def test_get_attr_docstrings_dynamic_class():
     DynClass = type("DynClass", (), {"x": 1})
     result = get_attr_docstrings(DynClass)
     assert result == {}
-

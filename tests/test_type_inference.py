@@ -263,4 +263,3 @@ def test_infer_bare_bool_returns_none():
     from argparse_type_helper._inference import infer_type_from_hint
 
     assert infer_type_from_hint(bool, has_nargs=False) is None
-

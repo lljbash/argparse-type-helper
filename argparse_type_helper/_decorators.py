@@ -1,5 +1,5 @@
 import copy
-from typing import Any, cast, dataclass_transform, get_type_hints
+from typing import Any, Callable, cast, dataclass_transform, get_type_hints, overload
 
 from argparse_type_helper._docstring import DocString
 from argparse_type_helper._types import (
@@ -159,6 +159,22 @@ def _apply_tgroup(
     return cls
 
 
+@overload
+def tgroup(cls_or_title: type[Any]) -> type[Any]: ...
+
+
+@overload
+def tgroup(cls_or_title: str, /) -> Callable[[type[Any]], type[Any]]: ...
+
+
+@overload
+def tgroup(
+    *,
+    title: str | None = None,
+    description: str | None = None,
+) -> Callable[[type[Any]], type[Any]]: ...
+
+
 def tgroup(
     cls_or_title: type[Any] | str | None = None,
     *,
@@ -208,6 +224,17 @@ def _apply_texclusive(
     return cls
 
 
+@overload
+def texclusive(cls: type[Any]) -> type[Any]: ...
+
+
+@overload
+def texclusive(
+    *,
+    required: bool = False,
+) -> Callable[[type[Any]], type[Any]]: ...
+
+
 def texclusive(
     cls: type[Any] | None = None,
     *,
@@ -250,6 +277,23 @@ def _apply_tsubcommands(
     return cls
 
 
+@overload
+def tsubcommands(cls_or_title: type[Any]) -> type[Any]: ...
+
+
+@overload
+def tsubcommands(cls_or_title: str, /) -> Callable[[type[Any]], type[Any]]: ...
+
+
+@overload
+def tsubcommands(
+    *,
+    title: str | None = None,
+    description: str | None = None,
+    required: bool | None = None,
+) -> Callable[[type[Any]], type[Any]]: ...
+
+
 def tsubcommands(
     cls_or_title: type[Any] | str | None = None,
     *,
@@ -269,10 +313,12 @@ def tsubcommands(
         @tsubcommands(title="...", description="...", required=True)
     """
     if isinstance(cls_or_title, type):
+        # Called as @tsubcommands without arguments
         return _apply_tsubcommands(
             cls_or_title, title=title, description=description, required=required
         )
     elif isinstance(cls_or_title, str):
+        # Called as @tsubcommands("title")
         actual_title = cls_or_title
 
         def decorator(cls: type[Any]) -> type[Any]:
@@ -282,7 +328,7 @@ def tsubcommands(
 
         return decorator
     else:
-
+        # Called as @tsubcommands(title="...", description="...", required=...)
         def decorator(cls: type[Any]) -> type[Any]:
             return _apply_tsubcommands(
                 cls, title=title, description=description, required=required
