@@ -66,7 +66,12 @@ def _scan_special_attrs(cls: type[object]) -> tuple[dict[str, type], dict[str, t
 
 @dataclass_transform(kw_only_default=True, field_specifiers=(targ, TArg))
 def targs[T](cls: type[T]) -> type[T]:
-    """Decorator to transform a class into a targs class."""
+    """Decorator to transform a class into a targs class.
+
+    Note:
+        TARGS_ATTR: auto-filled by TArg descriptors via __set_name__
+        TARGS_GROUPS_ATTR / TARGS_SUBCOMMANDS_ATTR: manually populated by _scan_special_attrs()
+    """
 
     # Scan for groups and subcommands before generating __init__
     own_groups, own_subcommands = _scan_special_attrs(cls)
