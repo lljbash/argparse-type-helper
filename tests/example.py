@@ -23,48 +23,55 @@ class MyArgs:
     including positional/optional arguments, type inference, and docstrings.
     """
 
+    # --- Positional arguments (always required, never None) ---
     positional: str = targ(Name)
-    """A positional argument (positional)."""
+    """A required positional argument."""
     custom_name_pos: str = targ("my_positional")
-    """A custom named positional argument."""
+    """A positional argument with a custom name."""
 
-    optional: str = targ(Flag)
-    """An optional argument (--optional)."""
-    optional_dash: str = targ(Flag)
-    """Underscore is replaced with dash (--optional-dash)."""
-    optional_short: str = targ(Flag("-s"))
-    """You can also add a short name (-s, --optional-short)."""
-    custom_name_opt: str = targ("--my-optional")
-    """A custom named optional argument."""
-    custom_name_opt_short: str = targ(("-c", "--my-short-optional"))
-    """A custom named optional argument with a short name. (note the tuple)"""
+    # --- Flag naming variants ---
+    # Flag without a default will be None when not provided — use `X | None`.
+    optional: str | None = targ(Flag)
+    """A basic optional flag (--optional)."""
+    optional_dash: str | None = targ(Flag)
+    """Underscores in the attribute name become dashes in the CLI (--optional-dash)."""
+    optional_short: str | None = targ(Flag("-s"))
+    """A flag with a short alias (-s / --optional-short)."""
+    custom_name_opt: str | None = targ("--my-optional")
+    """A flag with a fully custom name."""
+    # required=True means the flag must be provided, so None is not possible.
+    required_flag: str = targ(Flag, required=True)
+    """A required optional flag (--required-flag)."""
 
-    options: list[str] = targ(Flag, action="extend", nargs="+", default=[])
-    """All options (`help`, `action`, `nargs`, etc.) are the same as argparse."""
-    choices: str = targ(Flag, choices=["option1", "option2", "option3"])
-    """Another example argument with choices."""
+    # --- Common argparse options ---
+    # store_true / store_false automatically set default=False / True,
+    # so `bool` is correct — no `| None` needed.
     flag: bool = targ(Flag("-d"), action="store_true")
-    """Another example boolean flag."""
+    """A boolean flag (-d / --flag); defaults to False when not provided."""
+    choices: str | None = targ(Flag, choices=["option1", "option2", "option3"])
+    """A flag restricted to a fixed set of choices."""
+    options: list[str] = targ(Flag, action="extend", nargs="+", default=[])
+    """A flag that accumulates multiple values (action, nargs, default work as in argparse)."""
 
-    # Type is automatically inferred from the type hint.
+    # --- Type inference ---
     # For `int`, `float`, `str`, etc., no need to specify `type=`.
     default_type: int = targ(Flag, default=42)
-    """type is inferred from the type hint (type=int in this case)."""
-    # `X | None` (e.g. `float | None`) is also supported — the non-None type is used.
+    """Type is inferred from the type hint (int here)."""
+    # `X | None` is also supported — the non-None type is used for inference.
     nullable_ratio: float | None = targ(Flag, default=None)
-    """type is inferred as float from `float | None`."""
+    """Type is inferred as float from `float | None`."""
     # For `Sequence[X]` (or `list[X]`) with `nargs`, the element type is inferred automatically.
     numbers: Sequence[int] = targ(Flag, nargs="+", default=[])
-    """type is inferred as int from `Sequence[int]` when nargs is set."""
+    """Type is inferred as int from `Sequence[int]` when nargs is set."""
     # You can always override inference with an explicit `type=`.
     custom_type: float = targ(Flag, type=lambda x: round(float(x), 1), default=3.14)
-    """explicit type= always takes priority over inference."""
+    """Explicit type= always takes priority over inference."""
 
+    # --- Docstring as help text ---
     docstring_as_help: str = targ(Flag, default="default value")
     """
-    If you don't specify a help, it will use the docstring as the help text.
-    This is useful for documentation purposes.
-    Your LSP will also pick this up.
+    When no help= is specified, the attribute docstring is used as the help text.
+    Your LSP will also pick this up for inline documentation.
     """
 
     # You can also use the `post_init` decorator to execute some code after the arguments are extracted.
