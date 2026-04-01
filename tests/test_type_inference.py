@@ -237,3 +237,30 @@ def test_explicit_type_overrides_inference():
     args = parser.parse_args(["--value", "3.456"])
     result = extract_targs(args, ExplicitTypeArgs)
     assert result.value == 3.5
+
+
+# ---------------------------------------------------------------------------
+# infer_type_from_hint: internal branch coverage
+# ---------------------------------------------------------------------------
+
+
+def test_infer_bool_or_none_returns_none():
+    """bool | None should not infer to bool (bool doesn't work as argparse type)."""
+    from argparse_type_helper._inference import infer_type_from_hint
+
+    assert infer_type_from_hint(bool | None, has_nargs=False) is None
+
+
+def test_infer_multi_union_returns_none():
+    """int | str | None is ambiguous and should return None."""
+    from argparse_type_helper._inference import infer_type_from_hint
+
+    assert infer_type_from_hint(int | str | None, has_nargs=False) is None
+
+
+def test_infer_bare_bool_returns_none():
+    """Bare bool should not be inferred (use action= instead)."""
+    from argparse_type_helper._inference import infer_type_from_hint
+
+    assert infer_type_from_hint(bool, has_nargs=False) is None
+

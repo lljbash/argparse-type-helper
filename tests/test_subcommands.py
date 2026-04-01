@@ -7,6 +7,7 @@ import pytest
 from argparse_type_helper import (
     Flag,
     Name,
+    create_parser,
     extract_targs,
     post_init,
     register_targs,
@@ -513,3 +514,102 @@ def test_nested_subcommand_none():
     result = extract_targs(args, NestedArgs)
     assert isinstance(result.cmd, outer_service)
     assert result.cmd.inner is None
+
+
+# ---------------------------------------------------------------------------
+# @tsubcommands docstring → title/description split
+# ---------------------------------------------------------------------------
+
+
+@tsubcommands
+class DocCommands:
+    """Available commands
+
+    Choose one of the available commands below.
+    """
+
+
+@targs
+class doc_cmd_a(DocCommands):
+    """Start the service
+
+    Start the background service with the specified port.
+    """
+
+    port: int = targ(Flag, default=8080)
+
+
+@targs
+class ArgsDocSubcommands:
+    cmd: DocCommands
+
+
+def test_tsubcommands_docstring_title(capsys: pytest.CaptureFixture[str]):
+    """First line of @tsubcommands docstring becomes subparser group title."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, ArgsDocSubcommands)
+    parser.print_help()
+    captured = capsys.readouterr()
+    assert "Available commands" in captured.out
+
+
+def test_tsubcommands_docstring_description(capsys: pytest.CaptureFixture[str]):
+    """The rest of the @tsubcommands docstring becomes subparser description."""
+    parser = create_parser(ArgsDocSubcommands)
+    parser.print_help()
+    captured = capsys.readouterr()
+    assert "Choose one of the available commands below." in captured.out
+
+
+def test_subcommand_help_uses_title(capsys: pytest.CaptureFixture[str]):
+    """Subcommand help listing uses only the first line of the subcommand docstring."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, ArgsDocSubcommands)
+    parser.print_help()
+    captured = capsys.readouterr()
+    assert "Start the service" in captured.out
+
+
+def test_subcommand_parser_description_uses_full(capsys: pytest.CaptureFixture[str]):
+    """The sub-parser description uses the full docstring (title + body)."""
+    sub_parser = argparse.ArgumentParser()
+    register_targs(sub_parser, doc_cmd_a)
+    sub_parser.print_help()
+    captured = capsys.readouterr()
+    assert "Start the service" in captured.out
+    assert "Start the background service" in captured.out
+
+
+@tsubcommands(title="Named Operations", description="Pick one operation below.")
+class KwargTitleCommands:
+    pass
+
+
+@targs
+class kwarg_op(KwargTitleCommands):
+    """Do the operation"""
+
+    val: int = targ(Flag, default=0)
+
+
+@targs
+class KwargTitleArgs:
+    cmd: KwargTitleCommands
+
+
+def test_tsubcommands_kwarg_title(capsys: pytest.CaptureFixture[str]):
+    """tsubcommands(title=...) kwarg form sets the subparser group title."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, KwargTitleArgs)
+    parser.print_help()
+    captured = capsys.readouterr()
+    assert "Named Operations" in captured.out
+
+
+def test_tsubcommands_kwarg_description(capsys: pytest.CaptureFixture[str]):
+    """tsubcommands(description=...) kwarg form sets the subparser description."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, KwargTitleArgs)
+    parser.print_help()
+    captured = capsys.readouterr()
+    assert "Pick one operation below." in captured.out

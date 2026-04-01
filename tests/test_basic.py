@@ -7,6 +7,7 @@ import pytest
 from argparse_type_helper import (
     Flag,
     Name,
+    create_parser,
     extract_targs,
     post_init,
     register_targs,
@@ -110,36 +111,6 @@ def test_custom_positional_name():
     args = parser.parse_args(["value"])
     result = extract_targs(args, CustomNameArgs)
     assert result.custom_pos == "value"
-
-
-# ---------------------------------------------------------------------------
-# Type inference and custom type
-# ---------------------------------------------------------------------------
-
-
-@targs
-class TypeArgs:
-    count: int = targ(Flag, default=0)
-    ratio: float = targ(Flag, default=1.0)
-    custom: float = targ(Flag, type=lambda x: round(float(x), 1), default=3.14)
-
-
-def test_type_inference():
-    parser = argparse.ArgumentParser()
-    register_targs(parser, TypeArgs)
-    args = parser.parse_args(["--count", "42", "--ratio", "2.5"])
-    result = extract_targs(args, TypeArgs)
-    assert result.count == 42
-    assert isinstance(result.count, int)
-    assert result.ratio == 2.5
-
-
-def test_custom_type():
-    parser = argparse.ArgumentParser()
-    register_targs(parser, TypeArgs)
-    args = parser.parse_args(["--custom", "3.456"])
-    result = extract_targs(args, TypeArgs)
-    assert result.custom == 3.5
 
 
 # ---------------------------------------------------------------------------
@@ -714,3 +685,86 @@ def test_sibling_parent_has_only_own_args():
     assert result.a == "test"
     assert not hasattr(result, "b")
     assert not hasattr(result, "c")
+
+
+# ---------------------------------------------------------------------------
+# Mutable defaults
+# ---------------------------------------------------------------------------
+
+
+@targs
+class MutableDefaultArgs:
+    items: list[str] = targ(Flag, action="extend", nargs="+", default=[])
+    tags: dict[str, str] = targ(Flag, type=str, default={})
+
+
+def test_mutable_default_list_independence():
+    """Each instance gets its own list, not a shared reference."""
+    a = MutableDefaultArgs()
+    b = MutableDefaultArgs()
+    a.items.append("x")
+    assert b.items == []
+
+
+def test_mutable_default_dict_independence():
+    """Each instance gets its own dict, not a shared reference."""
+    a = MutableDefaultArgs()
+    b = MutableDefaultArgs()
+    a.tags["key"] = "val"  # type: ignore[index]
+    assert b.tags == {}
+
+
+@targs
+class SetDefaultArgs:
+    items: set[str] = targ(Flag, type=str, default=set[str]())
+
+
+def test_mutable_default_set_independence():
+    """Each instance gets its own set, not a shared reference."""
+    a = SetDefaultArgs()
+    b = SetDefaultArgs()
+    a.items.add("x")  # type: ignore[union-attr]
+    assert b.items == set()
+
+
+# ---------------------------------------------------------------------------
+# extract_targs / get_targs error paths
+# ---------------------------------------------------------------------------
+
+
+def test_extract_targs_missing_dest():
+    """extract_targs raises AttributeError when dest is missing from namespace."""
+    parser = create_parser(BasicArgs)
+    args = parser.parse_args(["hello"])
+    delattr(args, "positional")
+    with pytest.raises(AttributeError, match="not found in parsed args"):
+        extract_targs(args, BasicArgs)
+
+
+def test_get_targs_error_on_non_targs_class():
+    """get_targs raises TypeError on a class without @targs."""
+    from argparse_type_helper._types import get_targs
+
+    class Plain:
+        pass
+
+    with pytest.raises(TypeError, match="not a targs class"):
+        get_targs(Plain, check=True)
+
+
+# ---------------------------------------------------------------------------
+# Invalid choices
+# ---------------------------------------------------------------------------
+
+
+@targs
+class ChoicesArgs:
+    mode: str = targ(Flag, choices=["fast", "slow"], default="fast")
+
+
+def test_invalid_choice_exits():
+    """argparse exits when an invalid choice is provided."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, ChoicesArgs)
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--mode", "invalid"])

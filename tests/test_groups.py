@@ -284,3 +284,116 @@ def test_group_and_exclusive_combined():
     assert result.name == "myname"
     assert result.db.host == "h"
     assert result.mode.verbose is True
+
+
+# ---------------------------------------------------------------------------
+# @tgroup docstring → title/description split
+# ---------------------------------------------------------------------------
+
+
+@tgroup
+class DocstringTitleGroup:
+    """Database connection
+
+    Configure database host and port for the application.
+    """
+
+    host: str = targ(Flag, default="localhost")
+    port: int = targ(Flag, default=5432)
+
+
+@targs
+class GroupDocArgs:
+    db: DocstringTitleGroup
+
+
+def test_tgroup_docstring_title(capsys: pytest.CaptureFixture[str]):
+    """First line of docstring becomes group title."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, GroupDocArgs)
+    parser.print_help()
+    captured = capsys.readouterr()
+    assert "Database connection" in captured.out
+
+
+def test_tgroup_docstring_description(capsys: pytest.CaptureFixture[str]):
+    """Rest of docstring becomes group description."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, GroupDocArgs)
+    parser.print_help()
+    captured = capsys.readouterr()
+    assert "Configure database host" in captured.out
+
+
+@tgroup("Explicit Title")
+class ExplicitTitleGroup:
+    """This docstring title is ignored.
+
+    But this description is used.
+    """
+
+    val: str = targ(Flag, default="x")
+
+
+@targs
+class ExplicitGroupArgs:
+    g: ExplicitTitleGroup
+
+
+def test_tgroup_explicit_title_overrides_docstring(capsys: pytest.CaptureFixture[str]):
+    """Explicit string arg overrides docstring title."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, ExplicitGroupArgs)
+    parser.print_help()
+    captured = capsys.readouterr()
+    assert "Explicit Title" in captured.out
+    assert "This docstring title is ignored" not in captured.out
+
+
+def test_tgroup_explicit_title_docstring_description(
+    capsys: pytest.CaptureFixture[str],
+):
+    """Docstring description is still used when title is overridden."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, ExplicitGroupArgs)
+    parser.print_help()
+    captured = capsys.readouterr()
+    assert "But this description is used" in captured.out
+
+
+@tgroup(title="T", description="Explicit description")
+class FullyExplicitGroup:
+    """Ignored title.
+
+    Ignored description.
+    """
+
+    val: str = targ(Flag, default="x")
+
+
+@targs
+class FullyExplicitGroupArgs:
+    g: FullyExplicitGroup
+
+
+def test_tgroup_fully_explicit(capsys: pytest.CaptureFixture[str]):
+    """Explicit title= and description= both override docstring."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, FullyExplicitGroupArgs)
+    parser.print_help()
+    captured = capsys.readouterr()
+    assert "T" in captured.out
+    assert "Explicit description" in captured.out
+    assert "Ignored" not in captured.out
+
+
+# ---------------------------------------------------------------------------
+# @texclusive direct construction
+# ---------------------------------------------------------------------------
+
+
+def test_exclusive_direct_construction():
+    """texclusive instances can be created directly."""
+    mode = VerbosityMode(verbose=True, quiet=False)
+    assert mode.verbose is True
+    assert mode.quiet is False

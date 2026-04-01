@@ -1,4 +1,4 @@
-"""Tests for create_parser, docstring → description/title, and mutable defaults."""
+"""Tests for create_parser and register_targs: description auto-fill and formatter defaults."""
 
 import argparse
 import io
@@ -13,7 +13,6 @@ from argparse_type_helper import (
     register_targs,
     targ,
     targs,
-    tgroup,
     tsubcommands,
 )
 
@@ -86,6 +85,12 @@ def test_create_parser_no_docstring():
     assert parser.description is None
 
 
+def test_create_parser_verbose():
+    """create_parser with verbose=True doesn't raise."""
+    parser = create_parser(SimpleArgs, verbose=True)
+    assert isinstance(parser, argparse.ArgumentParser)
+
+
 # ---------------------------------------------------------------------------
 # register_targs auto-fills description
 # ---------------------------------------------------------------------------
@@ -112,201 +117,11 @@ def test_register_targs_no_override():
     assert parser.description == "Existing"
 
 
-# ---------------------------------------------------------------------------
-# @tgroup docstring → title/description split
-# ---------------------------------------------------------------------------
-
-
-@tgroup
-class DocstringGroup:
-    """Database connection
-
-    Configure database host and port for the application.
-    """
-
-    host: str = targ(Flag, default="localhost")
-    port: int = targ(Flag, default=5432)
-
-
-@targs
-class GroupDocArgs:
-    db: DocstringGroup
-
-
-def test_tgroup_docstring_title(capsys: pytest.CaptureFixture[str]):
-    """First line of docstring becomes group title."""
+def test_register_targs_verbose():
+    """register_targs with verbose=True doesn't raise."""
     parser = argparse.ArgumentParser()
-    register_targs(parser, GroupDocArgs)
-    parser.print_help()
-    captured = capsys.readouterr()
-    assert "Database connection" in captured.out
-
-
-def test_tgroup_docstring_description(capsys: pytest.CaptureFixture[str]):
-    """Rest of docstring becomes group description."""
-    parser = argparse.ArgumentParser()
-    register_targs(parser, GroupDocArgs)
-    parser.print_help()
-    captured = capsys.readouterr()
-    assert "Configure database host" in captured.out
-
-
-@tgroup("Explicit Title")
-class ExplicitTitleGroup:
-    """This docstring title is ignored.
-
-    But this description is used.
-    """
-
-    val: str = targ(Flag, default="x")
-
-
-@targs
-class ExplicitGroupArgs:
-    g: ExplicitTitleGroup
-
-
-def test_tgroup_explicit_title_overrides_docstring(capsys: pytest.CaptureFixture[str]):
-    parser = argparse.ArgumentParser()
-    register_targs(parser, ExplicitGroupArgs)
-    parser.print_help()
-    captured = capsys.readouterr()
-    assert "Explicit Title" in captured.out
-    assert "This docstring title is ignored" not in captured.out
-
-
-def test_tgroup_explicit_title_docstring_description(
-    capsys: pytest.CaptureFixture[str],
-):
-    parser = argparse.ArgumentParser()
-    register_targs(parser, ExplicitGroupArgs)
-    parser.print_help()
-    captured = capsys.readouterr()
-    assert "But this description is used" in captured.out
-
-
-@tgroup(title="T", description="Explicit description")
-class FullyExplicitGroup:
-    """Ignored title.
-
-    Ignored description.
-    """
-
-    val: str = targ(Flag, default="x")
-
-
-@targs
-class FullyExplicitGroupArgs:
-    g: FullyExplicitGroup
-
-
-def test_tgroup_fully_explicit(capsys: pytest.CaptureFixture[str]):
-    parser = argparse.ArgumentParser()
-    register_targs(parser, FullyExplicitGroupArgs)
-    parser.print_help()
-    captured = capsys.readouterr()
-    assert "T" in captured.out
-    assert "Explicit description" in captured.out
-    assert "Ignored" not in captured.out
-
-
-# ---------------------------------------------------------------------------
-# @tsubcommands docstring → title/description split
-# ---------------------------------------------------------------------------
-
-
-@tsubcommands
-class DocCommands:
-    """Available commands
-
-    Choose one of the available commands below.
-    """
-
-
-@targs
-class doc_cmd_a(DocCommands):
-    """Start the service
-
-    Start the background service with the specified port.
-    """
-
-    port: int = targ(Flag, default=8080)
-
-
-@targs
-class ArgsDocSubcommands:
-    cmd: DocCommands
-
-
-def test_tsubcommands_docstring_title(capsys: pytest.CaptureFixture[str]):
-    parser = argparse.ArgumentParser()
-    register_targs(parser, ArgsDocSubcommands)
-    parser.print_help()
-    captured = capsys.readouterr()
-    assert "Available commands" in captured.out
-
-
-def test_subcommand_help_uses_title(capsys: pytest.CaptureFixture[str]):
-    """Subcommand help in the listing uses only the first line."""
-    parser = argparse.ArgumentParser()
-    register_targs(parser, ArgsDocSubcommands)
-    parser.print_help()
-    captured = capsys.readouterr()
-    assert "Start the service" in captured.out
-
-
-def test_subcommand_parser_description_uses_full(capsys: pytest.CaptureFixture[str]):
-    """The sub-parser description uses the full docstring."""
-    parser = argparse.ArgumentParser()
-    register_targs(parser, ArgsDocSubcommands)
-    # Parse a specific subcommand and check its help output
-    sub_parser = argparse.ArgumentParser()
-    register_targs(sub_parser, doc_cmd_a)
-    sub_parser.print_help()
-    captured = capsys.readouterr()
-    assert "Start the service" in captured.out
-    assert "Start the background service" in captured.out
-
-
-# ---------------------------------------------------------------------------
-# Mutable default value fix
-# ---------------------------------------------------------------------------
-
-
-@targs
-class MutableDefaultArgs:
-    items: list[str] = targ(Flag, action="extend", nargs="+", default=[])
-    tags: dict[str, str] = targ(Flag, type=str, default={})
-
-
-def test_mutable_default_list_independence():
-    """Each instance gets its own list, not shared reference."""
-    a = MutableDefaultArgs()
-    b = MutableDefaultArgs()
-    a.items.append("x")
-    assert b.items == []
-
-
-def test_mutable_default_dict_independence():
-    """Each instance gets its own dict, not shared reference."""
-    a = MutableDefaultArgs()
-    b = MutableDefaultArgs()
-    a.tags["key"] = "val"  # type: ignore[index]
-    assert b.tags == {}
-
-
-# ---------------------------------------------------------------------------
-# DocString robustness (dynamic classes)
-# ---------------------------------------------------------------------------
-
-
-def test_get_attr_docstrings_dynamic_class():
-    """Dynamic classes (no source) don't crash docstring extraction."""
-    from argparse_type_helper._utils import get_attr_docstrings
-
-    DynClass = type("DynClass", (), {"x": 1})
-    result = get_attr_docstrings(DynClass)
-    assert result == {}
+    register_targs(parser, AutoDescArgs, verbose=True)
+    assert parser.description == "Auto description from docstring."
 
 
 # ---------------------------------------------------------------------------
@@ -333,7 +148,6 @@ def test_create_parser_preserves_description_newlines(
     parser = create_parser(SimpleArgs)
     parser.print_help()
     captured = capsys.readouterr()
-    # The blank line between title and description should be preserved
     assert "A simple argument parser.\n\nThis parser does basic things." in captured.out
 
 
@@ -360,9 +174,7 @@ class FmtArgs:
 def test_subparser_inherits_formatter():
     """Sub-parsers inherit the parent parser's formatter_class."""
     parser = create_parser(FmtArgs)
-    # The parent uses RawDescriptionHelpFormatter by default
     assert parser.formatter_class is argparse.RawDescriptionHelpFormatter
-    # Check the sub-parser also inherited it via help output
     args = parser.parse_args(["fmt_sub"])
     result = extract_targs(args, FmtArgs)
     assert isinstance(result.cmd, fmt_sub)
@@ -384,8 +196,6 @@ def test_subparser_inherits_custom_formatter():
 
         x: int = targ(Flag, default=0)
 
-    # create_parser uses RawDescriptionHelpFormatter by default;
-    # sub-parsers should inherit it so their descriptions keep newlines.
     sub_parser = create_parser(inh_sub)
     buf = io.StringIO()
     sub_parser.print_help(buf)
@@ -400,89 +210,3 @@ def test_register_targs_does_not_change_formatter():
     register_targs(parser, SimpleArgs)
     assert parser.formatter_class is original_formatter
 
-
-# ---------------------------------------------------------------------------
-# Mutable default: set
-# ---------------------------------------------------------------------------
-
-
-@targs
-class SetDefaultArgs:
-    items: set[str] = targ(Flag, type=str, default=set[str]())
-
-
-def test_mutable_default_set_independence():
-    """Each instance gets its own set, not shared reference."""
-    a = SetDefaultArgs()
-    b = SetDefaultArgs()
-    a.items.add("x")  # type: ignore[union-attr]
-    assert b.items == set()
-
-
-# ---------------------------------------------------------------------------
-# extract_targs error path
-# ---------------------------------------------------------------------------
-
-
-def test_extract_targs_missing_dest():
-    """extract_targs raises AttributeError when dest is missing from namespace."""
-    parser = create_parser(SimpleArgs)
-    args = parser.parse_args(["hello"])
-    delattr(args, "name")
-    with pytest.raises(AttributeError, match="not found in parsed args"):
-        extract_targs(args, SimpleArgs)
-
-
-# ---------------------------------------------------------------------------
-# get_targs / check_and_maybe_init_targs_class error paths
-# ---------------------------------------------------------------------------
-
-
-def test_get_targs_error_on_non_targs_class():
-    """get_targs raises TypeError on a class without @targs."""
-    from argparse_type_helper._types import get_targs
-
-    class Plain:
-        pass
-
-    with pytest.raises(TypeError, match="not a targs class"):
-        get_targs(Plain, check=True)
-
-
-# ---------------------------------------------------------------------------
-# infer_type_from_hint: additional branch coverage
-# ---------------------------------------------------------------------------
-
-
-def test_infer_bool_or_none_returns_none():
-    """bool | None should not infer to bool (bool doesn't work as argparse type)."""
-    from argparse_type_helper._inference import infer_type_from_hint
-
-    assert infer_type_from_hint(bool | None, has_nargs=False) is None
-
-
-def test_infer_multi_union_returns_none():
-    """int | str | None — ambiguous union, should return None."""
-    from argparse_type_helper._inference import infer_type_from_hint
-
-    assert infer_type_from_hint(int | str | None, has_nargs=False) is None
-
-
-def test_infer_bare_bool_returns_none():
-    """Bare bool should not be inferred (use action instead)."""
-    from argparse_type_helper._inference import infer_type_from_hint
-
-    assert infer_type_from_hint(bool, has_nargs=False) is None
-
-
-# ---------------------------------------------------------------------------
-# @tsubcommands docstring description
-# ---------------------------------------------------------------------------
-
-
-def test_tsubcommands_docstring_description(capsys: pytest.CaptureFixture[str]):
-    """The rest of the @tsubcommands docstring becomes subparser description."""
-    parser = create_parser(ArgsDocSubcommands)
-    parser.print_help()
-    captured = capsys.readouterr()
-    assert "Choose one of the available commands below." in captured.out

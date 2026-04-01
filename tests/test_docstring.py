@@ -98,3 +98,18 @@ def test_full_title_only():
 def test_full_none():
     doc = DocString(title=None, description=None)
     assert doc.full is None
+
+
+# ---------------------------------------------------------------------------
+# get_attr_docstrings utility
+# ---------------------------------------------------------------------------
+
+
+def test_get_attr_docstrings_dynamic_class():
+    """Dynamic classes (no source file) don't crash docstring extraction."""
+    from argparse_type_helper._utils import get_attr_docstrings
+
+    DynClass = type("DynClass", (), {"x": 1})
+    result = get_attr_docstrings(DynClass)
+    assert result == {}
+
