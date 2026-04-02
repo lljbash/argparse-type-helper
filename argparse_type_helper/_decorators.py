@@ -112,10 +112,10 @@ def targs[T](cls: type[T]) -> type[T]:
         for attr in subcommands:
             setattr(self, attr, kwargs.get(attr, None))
 
-        for cls in reversed(type(self).__mro__):
-            if not hasattr(cls, TARGS_FLAG_ATTR):
+        for base_cls in reversed(type(self).__mro__):
+            if not hasattr(base_cls, TARGS_FLAG_ATTR):
                 continue
-            for _, member in cls.__dict__.items():
+            for _, member in base_cls.__dict__.items():
                 if callable(member) and getattr(member, TARGS_POST_INIT_ATTR, False):
                     member(self)
 
