@@ -33,6 +33,9 @@ __all__ = [
     "TSUBCOMMANDS_TITLE_ATTR",
     "TSUBCOMMANDS_DESCRIPTION_ATTR",
     "TSUBCOMMANDS_REQUIRED_ATTR",
+    "TSUBCOMMAND_FLAG_ATTR",
+    "TSUBCOMMAND_NAME_ATTR",
+    "TSUBCOMMAND_ALIASES_ATTR",
     "check_and_maybe_init_targs_class",
     "get_targs",
 ]
@@ -160,6 +163,10 @@ TSUBCOMMANDS_TITLE_ATTR = "_tsubcommands_title"
 TSUBCOMMANDS_DESCRIPTION_ATTR = "_tsubcommands_description"
 TSUBCOMMANDS_REQUIRED_ATTR = "_tsubcommands_required"
 
+TSUBCOMMAND_FLAG_ATTR = "_tsubcommand_flag"
+TSUBCOMMAND_NAME_ATTR = "_tsubcommand_name"
+TSUBCOMMAND_ALIASES_ATTR = "_tsubcommand_aliases"
+
 
 def post_init[T, R](func: Callable[[T], R]) -> Callable[[T], R]:
     """Decorator to mark a function as a post-init function for targs classes."""
@@ -204,6 +211,10 @@ def is_texclusive_class(cls: object) -> bool:
 
 def is_tsubcommands_class(cls: object) -> bool:
     return isinstance(cls, type) and getattr(cls, TSUBCOMMANDS_FLAG_ATTR, False) is True
+
+
+def is_tsubcommand_class(cls: object) -> bool:
+    return isinstance(cls, type) and getattr(cls, TSUBCOMMAND_FLAG_ATTR, False) is True
 
 
 def is_group_like(cls: object) -> bool:

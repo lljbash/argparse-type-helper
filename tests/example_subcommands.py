@@ -5,6 +5,7 @@ from argparse_type_helper import (
     extract_targs,
     targ,
     targs,
+    tsubcommand,
     tsubcommands,
 )
 
@@ -23,7 +24,7 @@ class Commands:
 # Each subcommand's docstring first paragraph is shown in the
 # top-level help listing; the full docstring is used in the
 # subcommand's own --help.
-@targs
+@tsubcommand(name="push")
 class push(Commands):
     """Push changes to remote
 
@@ -37,7 +38,7 @@ class push(Commands):
     """Force push even if remote has diverged."""
 
 
-@targs
+@tsubcommand(name="pull")
 class pull(Commands):
     """Pull changes from remote
 

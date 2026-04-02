@@ -1,4 +1,4 @@
-from ._decorators import targs, texclusive, tgroup, tsubcommands
+from ._decorators import targs, texclusive, tgroup, tsubcommand, tsubcommands
 from ._docstring import DocString
 from ._registry import create_parser, extract_targs, register_targs
 from ._types import Flag, Name, post_init, targ
@@ -11,6 +11,7 @@ __all__ = [
     "tgroup",
     "texclusive",
     "tsubcommands",
+    "tsubcommand",
     "post_init",
     "create_parser",
     "register_targs",

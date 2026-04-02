@@ -14,6 +14,7 @@ from argparse_type_helper import (
     targ,
     targs,
     tgroup,
+    tsubcommand,
     tsubcommands,
 )
 
@@ -27,7 +28,7 @@ class Commands:
     """Available commands"""
 
 
-@targs
+@tsubcommand(name="push")
 class push(Commands):
     """Push changes to remote"""
 
@@ -35,7 +36,7 @@ class push(Commands):
     force: bool = targ(Flag("-f"), action="store_true")
 
 
-@targs
+@tsubcommand(name="pull")
 class pull(Commands):
     """Pull changes from remote"""
 
@@ -130,14 +131,14 @@ class TitledCommands:
     """All operations"""
 
 
-@targs
+@tsubcommand(name="op_start")
 class op_start(TitledCommands):
     """Start the service"""
 
     port: int = targ(Flag, default=8080)
 
 
-@targs
+@tsubcommand(name="op_stop")
 class op_stop(TitledCommands):
     """Stop the service"""
 
@@ -176,7 +177,7 @@ class RequiredCommands:
     pass
 
 
-@targs
+@tsubcommand(name="cmd_run")
 class cmd_run(RequiredCommands):
     """Run something"""
 
@@ -220,7 +221,7 @@ class ServiceCommands:
     pass
 
 
-@targs
+@tsubcommand(name="serve")
 class serve(ServiceCommands):
     """Start the server"""
 
@@ -253,7 +254,7 @@ class ValidatedCommands:
     pass
 
 
-@targs
+@tsubcommand(name="validated_cmd")
 class validated_cmd(ValidatedCommands):
     """A validated command"""
 
@@ -342,14 +343,14 @@ class SharedBase:
     """Commands with shared args"""
 
 
-@targs
+@tsubcommand(name="shared_cmd_a")
 class shared_cmd_a(SharedBase):
     """Command A"""
 
     name: str = targ(Name)
 
 
-@targs
+@tsubcommand(name="shared_cmd_b")
 class shared_cmd_b(SharedBase):
     """Command B"""
 
@@ -389,7 +390,7 @@ class InheritedBase:
     pass
 
 
-@targs
+@tsubcommand(name="inherit_a")
 class inherit_a(InheritedBase):
     """Inheriting command A"""
 
@@ -397,7 +398,7 @@ class inherit_a(InheritedBase):
     target: str = targ(Name)
 
 
-@targs
+@tsubcommand(name="inherit_b")
 class inherit_b(InheritedBase):
     """Inheriting command B"""
 
@@ -445,28 +446,28 @@ class InnerCommands:
     pass
 
 
-@targs
+@tsubcommand(name="inner_start")
 class inner_start(InnerCommands):
     """Start the inner service"""
 
     port: int = targ(Flag, default=8080)
 
 
-@targs
+@tsubcommand(name="inner_stop")
 class inner_stop(InnerCommands):
     """Stop the inner service"""
 
     force: bool = targ(Flag, action="store_true")
 
 
-@targs
+@tsubcommand(name="outer_service")
 class outer_service(OuterCommands):
     """Service management"""
 
     inner: InnerCommands
 
 
-@targs
+@tsubcommand(name="outer_info")
 class outer_info(OuterCommands):
     """Show info"""
 
@@ -516,6 +517,81 @@ def test_nested_subcommand_none():
     assert result.cmd.inner is None
 
 
+def test_nested_bare_targs_raises():
+    """Bare @targs sub-subcommand raises TypeError in nested context."""
+
+    @tsubcommands
+    class NestOuter:
+        pass
+
+    @tsubcommands
+    class NestInner:
+        pass
+
+    @targs
+    class BadInner(NestInner):  # pyright: ignore[reportUnusedClass]
+        val: int = targ(Flag, default=0)
+
+    @tsubcommand(name="service")
+    class NestService(NestOuter):  # pyright: ignore[reportUnusedClass]
+        inner: NestInner
+
+    @targs
+    class NestTopArgs:
+        cmd: NestOuter
+
+    parser = argparse.ArgumentParser()
+    with pytest.raises(TypeError, match=r"@tsubcommand\(name="):
+        register_targs(parser, NestTopArgs)
+
+
+def test_nested_subcommand_aliases():
+    """Aliases work in nested (sub-sub) subcommands."""
+
+    @tsubcommands
+    class NAOuter:
+        pass
+
+    @tsubcommands
+    class NAInner:
+        pass
+
+    @tsubcommand(name="start", aliases=["s", "up"])
+    class NAStart(NAInner):
+        port: int = targ(Flag, default=8080)
+
+    @tsubcommand(name="svc")
+    class NASvc(NAOuter):
+        action: NAInner
+
+    @targs
+    class NATopArgs:
+        cmd: NAOuter
+
+    parser = argparse.ArgumentParser()
+    register_targs(parser, NATopArgs)
+
+    # Canonical name
+    args = parser.parse_args(["svc", "start", "--port", "9090"])
+    result = extract_targs(args, NATopArgs)
+    assert isinstance(result.cmd, NASvc)
+    assert isinstance(result.cmd.action, NAStart)
+    assert result.cmd.action.port == 9090
+
+    # Alias
+    args = parser.parse_args(["svc", "s"])
+    result = extract_targs(args, NATopArgs)
+    assert isinstance(result.cmd, NASvc)
+    assert isinstance(result.cmd.action, NAStart)
+    assert result.cmd.action.port == 8080
+
+    # Second alias
+    args = parser.parse_args(["svc", "up", "--port", "3000"])
+    result = extract_targs(args, NATopArgs)
+    assert isinstance(result.cmd.action, NAStart)
+    assert result.cmd.action.port == 3000
+
+
 # ---------------------------------------------------------------------------
 # @tsubcommands docstring → title/description split
 # ---------------------------------------------------------------------------
@@ -529,7 +605,7 @@ class DocCommands:
     """
 
 
-@targs
+@tsubcommand(name="doc_cmd_a")
 class doc_cmd_a(DocCommands):
     """Start the service
 
@@ -585,7 +661,7 @@ class KwargTitleCommands:
     pass
 
 
-@targs
+@tsubcommand(name="kwarg_op")
 class kwarg_op(KwargTitleCommands):
     """Do the operation"""
 
@@ -613,3 +689,286 @@ def test_tsubcommands_kwarg_description(capsys: pytest.CaptureFixture[str]):
     parser.print_help()
     captured = capsys.readouterr()
     assert "Pick one operation below." in captured.out
+
+
+# ---------------------------------------------------------------------------
+# Custom subcommand name via @tsubcommand(name=...)
+# ---------------------------------------------------------------------------
+
+
+@tsubcommands(required=True)
+class NamedCommands:
+    """Available commands"""
+
+
+@tsubcommand(name="run-fixed")
+class RunFixed(NamedCommands):
+    """Run with fixed prompts"""
+
+    count: int = targ(Flag, default=10)
+
+
+@tsubcommand(name="load-csv")
+class LoadCsv(NamedCommands):
+    """Load CSV results"""
+
+    path: str = targ(Name)
+
+
+@targs
+class NamedArgs:
+    cmd: NamedCommands
+
+
+def test_custom_name_parsing():
+    """@tsubcommand(name=...) sets the subcommand name on the CLI."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, NamedArgs)
+    args = parser.parse_args(["run-fixed", "--count", "42"])
+    result = extract_targs(args, NamedArgs)
+    assert isinstance(result.cmd, RunFixed)
+    assert result.cmd.count == 42
+
+
+def test_custom_name_positional():
+    parser = argparse.ArgumentParser()
+    register_targs(parser, NamedArgs)
+    args = parser.parse_args(["load-csv", "data.csv"])
+    result = extract_targs(args, NamedArgs)
+    assert isinstance(result.cmd, LoadCsv)
+    assert result.cmd.path == "data.csv"
+
+
+def test_custom_name_help(capsys: pytest.CaptureFixture[str]):
+    """Custom subcommand names appear in --help."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, NamedArgs)
+    parser.print_help()
+    captured = capsys.readouterr()
+    assert "run-fixed" in captured.out
+    assert "load-csv" in captured.out
+    assert "Run with fixed prompts" in captured.out
+
+
+def test_custom_name_invalid_choice():
+    """Original class name is not accepted when a custom name is set."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, NamedArgs)
+    with pytest.raises(SystemExit):
+        parser.parse_args(["RunFixed"])
+
+
+# ---------------------------------------------------------------------------
+# Custom name with multi-inheritance
+# ---------------------------------------------------------------------------
+
+
+@tsubcommands(required=True)
+class MixinCommands:
+    pass
+
+
+@targs
+class SharedRunArgs:
+    url: str = targ(Name)
+    concurrency: int = targ(Flag("-c"), required=True)
+
+
+@tsubcommand(name="run-benchmark")
+class RunBenchmark(SharedRunArgs, MixinCommands):
+    """Run benchmark"""
+
+    iterations: int = targ(Flag, default=100)
+
+
+@tsubcommand(name="show-results")
+class ShowResults(MixinCommands):
+    """Show results"""
+
+    csv_path: str = targ(Name)
+
+
+@targs
+class MixinArgs:
+    command: MixinCommands
+
+
+def test_custom_name_multi_inheritance():
+    """@tsubcommand(name=...) works with multi-inheritance subcommands."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, MixinArgs)
+    args = parser.parse_args(["run-benchmark", "http://host", "-c", "5"])
+    result = extract_targs(args, MixinArgs)
+    assert isinstance(result.command, RunBenchmark)
+    assert result.command.url == "http://host"
+    assert result.command.concurrency == 5
+    assert result.command.iterations == 100
+
+
+def test_custom_name_multi_inheritance_pattern_match():
+    parser = argparse.ArgumentParser()
+    register_targs(parser, MixinArgs)
+    args = parser.parse_args(["show-results", "out.csv"])
+    result = extract_targs(args, MixinArgs)
+    match result.command:
+        case ShowResults(csv_path=p):
+            assert p == "out.csv"
+        case _:
+            assert False, "Pattern match failed"
+
+
+# ---------------------------------------------------------------------------
+# Edge cases
+# ---------------------------------------------------------------------------
+
+
+def test_bare_targs_subclass_raises():
+    """Bare @targs subclass of @tsubcommands base raises TypeError during registration."""
+
+    @tsubcommands(required=True)
+    class ErrorCommands:
+        pass
+
+    @targs
+    class BadSubcmd(ErrorCommands):  # pyright: ignore[reportUnusedClass]
+        val: int = targ(Flag, default=0)
+
+    @targs
+    class ErrorArgs:
+        cmd: ErrorCommands
+
+    parser = argparse.ArgumentParser()
+    with pytest.raises(TypeError, match=r"@tsubcommand\(name="):
+        register_targs(parser, ErrorArgs)
+
+
+def test_bare_targs_multi_inherit_raises():
+    """Bare @targs subclass with multi-inheritance also raises TypeError."""
+
+    @tsubcommands(required=True)
+    class MICommands:
+        pass
+
+    @targs
+    class SharedBase:
+        url: str = targ(Name)
+
+    @targs
+    class MIBadSubcmd(SharedBase, MICommands):  # pyright: ignore[reportUnusedClass]
+        """Multi-inherited but missing @tsubcommand."""
+
+        extra: int = targ(Flag, default=0)
+
+    @targs
+    class MIArgs:
+        cmd: MICommands
+
+    parser = argparse.ArgumentParser()
+    with pytest.raises(TypeError, match=r"@tsubcommand\(name="):
+        register_targs(parser, MIArgs)
+
+
+def test_plain_subclass_without_decorators_ignored():
+    """A plain subclass (no @targs, no @tsubcommand) is silently skipped."""
+
+    @tsubcommands(required=True)
+    class SkipCommands:
+        pass
+
+    @tsubcommand(name="valid")
+    class ValidCmd(SkipCommands):
+        val: int = targ(Flag, default=0)
+
+    class PlainSubclass(SkipCommands):  # pyright: ignore[reportUnusedClass]
+        """No decorator at all — should be silently ignored."""
+
+        pass
+
+    @targs
+    class SkipArgs:
+        cmd: SkipCommands
+
+    parser = argparse.ArgumentParser()
+    register_targs(parser, SkipArgs)
+    # Should work; PlainSubclass is ignored, ValidCmd is registered
+    args = parser.parse_args(["valid"])
+    result = extract_targs(args, SkipArgs)
+    assert isinstance(result.cmd, ValidCmd)
+
+
+# ---------------------------------------------------------------------------
+# Aliases
+# ---------------------------------------------------------------------------
+
+
+@tsubcommands(required=True)
+class AliasCommands:
+    """Alias test commands"""
+
+
+@tsubcommand(name="run-benchmark", aliases=["rb", "bench"])
+class BenchCmd(AliasCommands):
+    """Run the benchmark"""
+
+    iterations: int = targ(Flag, default=100)
+
+
+@tsubcommand(name="show-results", aliases=["sr"])
+class ShowCmd(AliasCommands):
+    """Show results"""
+
+    path: str = targ(Name)
+
+
+@targs
+class AliasArgs:
+    cmd: AliasCommands
+
+
+def test_alias_canonical_name():
+    """Canonical name works as expected."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, AliasArgs)
+    args = parser.parse_args(["run-benchmark", "--iterations", "50"])
+    result = extract_targs(args, AliasArgs)
+    assert isinstance(result.cmd, BenchCmd)
+    assert result.cmd.iterations == 50
+
+
+def test_alias_short():
+    """Alias is accepted on the CLI."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, AliasArgs)
+    args = parser.parse_args(["rb", "--iterations", "25"])
+    result = extract_targs(args, AliasArgs)
+    assert isinstance(result.cmd, BenchCmd)
+    assert result.cmd.iterations == 25
+
+
+def test_alias_second():
+    """Multiple aliases all work."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, AliasArgs)
+    args = parser.parse_args(["bench"])
+    result = extract_targs(args, AliasArgs)
+    assert isinstance(result.cmd, BenchCmd)
+
+
+def test_alias_in_help(capsys: pytest.CaptureFixture[str]):
+    """Aliases appear in --help output."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, AliasArgs)
+    parser.print_help()
+    captured = capsys.readouterr()
+    assert "run-benchmark" in captured.out
+    assert "show-results" in captured.out
+
+
+def test_alias_positional_subcmd():
+    """Alias with positional argument subcommand."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, AliasArgs)
+    args = parser.parse_args(["sr", "out.csv"])
+    result = extract_targs(args, AliasArgs)
+    assert isinstance(result.cmd, ShowCmd)
+    assert result.cmd.path == "out.csv"

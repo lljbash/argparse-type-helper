@@ -25,7 +25,7 @@ pip install argparse-type-helper
 - **Type inference** — Automatically infers `type=` from hints (`X | None`, `Sequence[X]`, bare `int`/`float`/`str`). Skips `bool`.
 - **Docstring-driven help** — Attribute docstrings → help text, class docstrings → descriptions. IDE-friendly.
 - **Argument groups & exclusion** — `@tgroup` for groups, `@texclusive` for mutually exclusive args.
-- **Subcommands** — `@tsubcommands` with class inheritance, `isinstance`/`match` support.
+- **Subcommands** — `@tsubcommands` + `@tsubcommand(name=..., aliases=[...])` with class inheritance, `isinstance`/`match` support.
 - **Hybrid usage** — Mix `@targs` classes with native `parser.add_argument()` freely.
 
 ## Usage
@@ -266,7 +266,7 @@ Docstring splitting rule: the first paragraph (up to the first blank line) becom
 
 ## Subcommands
 
-Use `@tsubcommands` to define subcommands via class inheritance. Each subcommand is a `@targs` class inheriting from the `@tsubcommands` base. Subcommands are discovered automatically via `__subclasses__()` — no manual registration needed.
+Use `@tsubcommands` to define subcommands via class inheritance. Each subcommand is a `@tsubcommand(name=...)` class inheriting from the `@tsubcommands` base. The `name` parameter is required — it is the CLI token users type to select the subcommand. Subcommands are discovered automatically via `__subclasses__()` — no manual registration needed.
 
 <!-- MARKDOWN-AUTO-DOCS:START (CODE:src=./tests/example_subcommands.py) -->
 <!-- The below code snippet is automatically added from ./tests/example_subcommands.py -->
@@ -278,6 +278,7 @@ from argparse_type_helper import (
     extract_targs,
     targ,
     targs,
+    tsubcommand,
     tsubcommands,
 )
 
@@ -296,7 +297,7 @@ class Commands:
 # Each subcommand's docstring first paragraph is shown in the
 # top-level help listing; the full docstring is used in the
 # subcommand's own --help.
-@targs
+@tsubcommand(name="push")
 class push(Commands):
     """Push changes to remote
 
@@ -310,7 +311,7 @@ class push(Commands):
     """Force push even if remote has diverged."""
 
 
-@targs
+@tsubcommand(name="pull")
 class pull(Commands):
     """Pull changes from remote
 
@@ -363,6 +364,14 @@ The `@tsubcommands` decorator supports:
 @tsubcommands(required=True)                         # require a subcommand
 @tsubcommands(title="...", description="...", required=True)
 ```
+
+The `@tsubcommand` decorator is used on each subcommand class:
+```python
+@tsubcommand(name="run")                             # name is required
+@tsubcommand(name="run", aliases=["r", "exec"])      # add aliases
+```
+
+> **Note:** `@tsubcommand` always requires parentheses and a `name` argument. Using bare `@targs` on a `@tsubcommands` subclass will raise `TypeError` during registration.
 
 Subcommand docstrings follow the same splitting rule: the first paragraph becomes the subcommand's **help** text (shown in the parent `--help` listing), while the full docstring becomes the subcommand's own parser **description** (shown in `<subcommand> --help`).
 

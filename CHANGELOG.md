@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.0-post1]
+
+### Added
+- **`@tsubcommand(name=..., aliases=[...])`** decorator — explicitly name subcommand classes for the CLI.
+  Replaces bare `@targs` on subcommand classes; `name` is required.
+  `aliases` accepts a list of alternative names for the subcommand.
+
+### Changed
+- Subcommand classes **must** use `@tsubcommand(name="...")` instead of `@targs`.
+  Bare `@targs` subclasses of a `@tsubcommands` base now raise `TypeError` during registration.
+
 ## [1.0.0]
 
 ### Added

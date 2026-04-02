@@ -13,6 +13,7 @@ from argparse_type_helper import (
     register_targs,
     targ,
     targs,
+    tsubcommand,
     tsubcommands,
 )
 
@@ -156,7 +157,7 @@ class FmtCommands:
     """Commands"""
 
 
-@targs
+@tsubcommand(name="fmt_sub")
 class fmt_sub(FmtCommands):
     """Sub description
 
@@ -187,7 +188,7 @@ def test_subparser_inherits_custom_formatter():
     class InhCmds:
         """Commands"""
 
-    @targs
+    @tsubcommand(name="inh_sub")
     class inh_sub(InhCmds):  # noqa: N801
         """First line
 

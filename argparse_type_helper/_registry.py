@@ -10,6 +10,9 @@ from argparse_type_helper._types import (
     TEXCLUSIVE_REQUIRED_ATTR,
     TGROUP_DESCRIPTION_ATTR,
     TGROUP_TITLE_ATTR,
+    TSUBCOMMAND_ALIASES_ATTR,
+    TSUBCOMMAND_FLAG_ATTR,
+    TSUBCOMMAND_NAME_ATTR,
     TSUBCOMMANDS_DESCRIPTION_ATTR,
     TSUBCOMMANDS_REQUIRED_ATTR,
     TSUBCOMMANDS_TITLE_ATTR,
@@ -123,11 +126,32 @@ def register_targs(
         subparsers = parser.add_subparsers(**sp_kwargs)
 
         for subcmd_cls in subcmd_base.__subclasses__():
-            if not getattr(subcmd_cls, TARGS_FLAG_ATTR, None):
+            is_tsubcmd = getattr(subcmd_cls, TSUBCOMMAND_FLAG_ATTR, False)
+            is_targs = getattr(subcmd_cls, TARGS_FLAG_ATTR, None) is not None
+
+            if not is_tsubcmd:
+                if is_targs:
+                    raise TypeError(
+                        f"{subcmd_cls.__name__} inherits from @tsubcommands base "
+                        f"{subcmd_base.__name__} but uses @targs instead of "
+                        f"@tsubcommand(name=...). Use @tsubcommand to declare "
+                        f"subcommands."
+                    )
                 continue
+
+            subcmd_name: str | None = getattr(subcmd_cls, TSUBCOMMAND_NAME_ATTR, None)
+            if subcmd_name is None:
+                raise TypeError(
+                    f"{subcmd_cls.__name__} has @tsubcommand flag but no name. "
+                    "Use @tsubcommand(name=...) instead of setting attributes manually."
+                )
+            subcmd_aliases: tuple[str, ...] = getattr(
+                subcmd_cls, TSUBCOMMAND_ALIASES_ATTR, ()
+            )
             subcmd_doc = DocString.parse(subcmd_cls.__doc__)
             sub_parser = subparsers.add_parser(
-                subcmd_cls.__name__,
+                subcmd_name,
+                aliases=subcmd_aliases,
                 help=subcmd_doc.title,
                 description=subcmd_doc.full,
                 formatter_class=parser.formatter_class,
@@ -158,7 +182,15 @@ def extract_targs[T](args: argparse.Namespace, cls: type[T]) -> T:
         chosen_name = getattr(args, attr, None)
         if chosen_name is not None:
             for subcmd_cls in subcmd_base.__subclasses__():
-                if subcmd_cls.__name__ == chosen_name:
+                if not getattr(subcmd_cls, TSUBCOMMAND_FLAG_ATTR, False):
+                    continue
+                subcmd_name: str | None = getattr(
+                    subcmd_cls, TSUBCOMMAND_NAME_ATTR, None
+                )
+                subcmd_aliases: tuple[str, ...] = getattr(
+                    subcmd_cls, TSUBCOMMAND_ALIASES_ATTR, ()
+                )
+                if subcmd_name == chosen_name or chosen_name in subcmd_aliases:
                     kwargs[attr] = extract_targs(args, subcmd_cls)
                     break
     return cls(**kwargs)

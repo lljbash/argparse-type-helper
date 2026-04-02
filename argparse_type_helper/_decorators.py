@@ -1,5 +1,13 @@
 import copy
-from typing import Any, Callable, cast, dataclass_transform, get_type_hints, overload
+from collections.abc import Sequence
+from typing import (
+    Any,
+    Callable,
+    cast,
+    dataclass_transform,
+    get_type_hints,
+    overload,
+)
 
 from argparse_type_helper._docstring import DocString
 from argparse_type_helper._types import (
@@ -12,6 +20,9 @@ from argparse_type_helper._types import (
     TGROUP_DESCRIPTION_ATTR,
     TGROUP_FLAG_ATTR,
     TGROUP_TITLE_ATTR,
+    TSUBCOMMAND_ALIASES_ATTR,
+    TSUBCOMMAND_FLAG_ATTR,
+    TSUBCOMMAND_NAME_ATTR,
     TSUBCOMMANDS_DESCRIPTION_ATTR,
     TSUBCOMMANDS_FLAG_ATTR,
     TSUBCOMMANDS_REQUIRED_ATTR,
@@ -31,6 +42,7 @@ __all__ = [
     "tgroup",
     "texclusive",
     "tsubcommands",
+    "tsubcommand",
 ]
 
 
@@ -303,7 +315,7 @@ def tsubcommands(
 ) -> Any:
     """Decorator to mark a class as a subcommands base.
 
-    Subcommands are @targs classes that inherit from this class.
+    Subcommands are @tsubcommand classes that inherit from this class.
     They are discovered automatically via __subclasses__().
 
     Usage:
@@ -335,3 +347,45 @@ def tsubcommands(
             )
 
         return decorator
+
+
+# ---------------------------------------------------------------------------
+# @tsubcommand decorator (singular — marks individual subcommands)
+# ---------------------------------------------------------------------------
+
+
+@dataclass_transform(kw_only_default=True, field_specifiers=(targ, TArg))
+def _apply_tsubcommand(cls: type[Any], name: str, aliases: Sequence[str]) -> type[Any]:
+    """Internal: apply tsubcommand metadata + targs to a class."""
+    cls = targs(cls)
+    setattr(cls, TSUBCOMMAND_FLAG_ATTR, True)
+    setattr(cls, TSUBCOMMAND_NAME_ATTR, name)
+    setattr(cls, TSUBCOMMAND_ALIASES_ATTR, tuple(aliases))
+    return cls
+
+
+@dataclass_transform(kw_only_default=True, field_specifiers=(targ, TArg))
+def tsubcommand(
+    *, name: str, aliases: Sequence[str] = ()
+) -> Callable[[type[Any]], type[Any]]:
+    """Decorator to mark a class as a named subcommand.
+
+    The ``name`` parameter is required — it is the CLI token users type
+    to select this subcommand.  ``aliases`` provides alternative tokens.
+    The decorated class must inherit from a ``@tsubcommands`` base.
+
+    Usage::
+
+        @tsubcommand(name="run-fixed")
+        class RunFixed(Commands):
+            count: int = targ(Flag, default=10)
+
+        @tsubcommand(name="run-fixed", aliases=["rf"])
+        class RunFixed(Commands):
+            count: int = targ(Flag, default=10)
+    """
+
+    def decorator(cls: type[Any]) -> type[Any]:
+        return _apply_tsubcommand(cls, name=name, aliases=aliases)
+
+    return decorator

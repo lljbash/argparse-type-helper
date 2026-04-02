@@ -73,13 +73,14 @@ All internal modules use `_` prefix to signal they are not public API. All publi
    - `targ()`: Function that creates `TArg` configuration objects
    - `post_init`: Decorator for post-extraction validation hooks
    - `get_targs()`, `check_and_maybe_init_targs_class()`: Internal helpers shared by decorators and registry
-   - Detection helpers: `is_tgroup_class()`, `is_texclusive_class()`, `is_tsubcommands_class()`, `is_group_like()` — shared by `_decorators` and `_registry`
+   - Detection helpers: `is_tgroup_class()`, `is_texclusive_class()`, `is_tsubcommands_class()`, `is_tsubcommand_class()`, `is_group_like()` — shared by `_decorators` and `_registry`
 
 2. **`_decorators.py`** — Class decorators
    - `@targs`: Transforms a class into a typed arguments container (generates `__init__`, `__repr__`)
    - `@tgroup`: Marks a class as an argument group (title/description from docstring or params)
    - `@texclusive`: Marks a class as a mutually exclusive group
    - `@tsubcommands`: Marks a class as a subcommands base
+   - `@tsubcommand(name=..., aliases=[...])`: Marks a class as a named subcommand (must inherit from a `@tsubcommands` base); `name` is required, `aliases` is optional
    - `_scan_special_attrs()`: Discovers group/subcommand references via type annotations
 
 3. **`_registry.py`** — Parser registration and extraction
@@ -109,14 +110,14 @@ All internal modules use `_` prefix to signal they are not public API. All publi
 - **Docstring Extraction** (`_utils.py`): Uses AST parsing with `textwrap.dedent` to extract docstrings from attributes. Works for both module-level and function-scoped (indented) classes.
 - **DocString Splitting** (`_docstring.py`): Uses `inspect.cleandoc()` then splits on `"\n\n"` (first blank line). First paragraph = title, rest = description. Applied consistently to `@targs`, `@tgroup`, `@tsubcommands`, and subcommand classes.
 - **Mutable Default Safety**: `list`, `dict`, and `set` defaults are shallow-copied in the generated `__init__` to prevent sharing across instances.
-- **Decorator Consistency**: All three decorators (`@tgroup`, `@texclusive`, `@tsubcommands`) support dual calling styles: bare `@decorator` and parameterized `@decorator(...)`. Title can be passed as the first positional argument or via keyword. Note: `@texclusive` does not support `title`/`description` — this is a limitation of `argparse.MutuallyExclusiveGroup`.
+- **Decorator Consistency**: All three decorators (`@tgroup`, `@texclusive`, `@tsubcommands`) support dual calling styles: bare `@decorator` and parameterized `@decorator(...)`. Title can be passed as the first positional argument or via keyword. Note: `@texclusive` does not support `title`/`description` — this is a limitation of `argparse.MutuallyExclusiveGroup`. `@tsubcommand` always requires `name` — no bare form.
 
 ## Key Conventions
 
 ### Naming Rules
 - **Underscores to Dashes**: When using `Flag` for optional arguments, underscores in the class attribute name are automatically converted to dashes in the CLI (e.g., `optional_dash` becomes `--optional-dash`).
 - **Dest Mapping**: The `get_dest()` method handles converting flag names back to attribute names when extracting from `Namespace`.
-- **Subcommand Names**: The class name of a `@targs` subclass is used as the subcommand name.
+- **Subcommand Names**: Subcommand classes must use `@tsubcommand(name="...", aliases=[...])` — the `name` parameter is the CLI token. There is no default name; it must always be explicitly provided. `aliases` is optional and provides alternative names. Bare `@targs` on a `@tsubcommands` subclass raises `TypeError` during registration.
 
 ### Type Hint Requirements
 - All `targ()` fields **must** have a type hint.
@@ -145,9 +146,9 @@ All internal modules use `_` prefix to signal they are not public API. All publi
 - **basedpyright strict mode** for type checking
 
 ### Module Organization
-- `__init__.py`: Public API exports (Name, Flag, DocString, targ, targs, tgroup, texclusive, tsubcommands, post_init, register_targs, extract_targs, create_parser)
+- `__init__.py`: Public API exports (Name, Flag, DocString, targ, targs, tgroup, texclusive, tsubcommands, tsubcommand, post_init, register_targs, extract_targs, create_parser)
 - `_types.py`: Core types, TArg, targ(), post_init, constants
-- `_decorators.py`: All class decorators (@targs, @tgroup, @texclusive, @tsubcommands)
+- `_decorators.py`: All class decorators (@targs, @tgroup, @texclusive, @tsubcommands, @tsubcommand)
 - `_registry.py`: register_targs, extract_targs, create_parser
 - `_inference.py`: Type inference logic
 - `_docstring.py`: DocString dataclass with parsing logic
@@ -159,7 +160,8 @@ All internal modules use `_` prefix to signal they are not public API. All publi
 - `_targs_subcommands`: Dict mapping attribute name → subcommands base class (set by `@targs`)
 - `_tgroup_flag` / `_tgroup_title` / `_tgroup_description`: Group metadata (set by `@tgroup`)
 - `_texclusive_flag` / `_texclusive_required`: Exclusive group metadata (set by `@texclusive`)
-- `_tsubcommands_flag` / `_tsubcommands_title` / `_tsubcommands_description` / `_tsubcommands_required`: Subcommand metadata (set by `@tsubcommands`)
+- `_tsubcommands_flag` / `_tsubcommands_title` / `_tsubcommands_description` / `_tsubcommands_required`: Subcommand base metadata (set by `@tsubcommands`)
+- `_tsubcommand_flag` / `_tsubcommand_name` / `_tsubcommand_aliases`: Individual subcommand metadata (set by `@tsubcommand`)
 
 ### Testing
 - Located in `tests/` directory
