@@ -12,24 +12,27 @@ description = "an easy-to-integrate typed argument parser"
 readme = "README.md"
 keywords = ["argparse", "typing", "argument parser", "type hints", "typed arguments"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
-    "Operating System :: POSIX",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries",
+    "Typing :: Typed",
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/lljbash/targs"
-"Bug Tracker" = "https://github.com/lljbash/targs/issues"
+"Homepage" = "https://github.com/lljbash/argparse-type-helper"
+"Bug Tracker" = "https://github.com/lljbash/argparse-type-helper/issues"
 
 [tool.setuptools_scm]
 
 [tool.black]
 include = '\.pyi?$'
-required-version = "25"
+required-version = "26"
+target-version = ["py312"]
 
 [tool.isort]
 profile = "black"
@@ -44,6 +47,7 @@ deprecateTypingAliases = true
 [dependency-groups]
 dev = [
     "basedpyright>=1.29.2",
-    "black>=25.1.0",
+    "black~=26.0",
     "isort>=6.0.1",
+    "pytest>=8.0.0",
 ]

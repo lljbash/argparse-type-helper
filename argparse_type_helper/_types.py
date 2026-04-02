@@ -1,25 +1,40 @@
 import argparse
 import copy
 from dataclasses import asdict, dataclass, field
-from typing import Any, Callable, Literal, cast, dataclass_transform, get_type_hints
+from typing import Any, Callable, Literal, cast
 
-from argparse_type_helper.utils import (
+from argparse_type_helper._utils import (
     Sentry,
     copy_signature,
-    get_attr_docstrings,
     inst_sentry,
     is_sentry,
-    logger,
 )
 
 __all__ = [
+    "Unset",
     "Name",
     "Flag",
+    "NameOrFlag",
+    "StrAction",
+    "TArg",
     "targ",
     "post_init",
-    "targs",
-    "register_targs",
-    "extract_targs",
+    "TARGS_ATTR",
+    "TARGS_FLAG_ATTR",
+    "TARGS_POST_INIT_ATTR",
+    "TARGS_GROUPS_ATTR",
+    "TARGS_SUBCOMMANDS_ATTR",
+    "TGROUP_FLAG_ATTR",
+    "TGROUP_TITLE_ATTR",
+    "TGROUP_DESCRIPTION_ATTR",
+    "TEXCLUSIVE_FLAG_ATTR",
+    "TEXCLUSIVE_REQUIRED_ATTR",
+    "TSUBCOMMANDS_FLAG_ATTR",
+    "TSUBCOMMANDS_TITLE_ATTR",
+    "TSUBCOMMANDS_DESCRIPTION_ATTR",
+    "TSUBCOMMANDS_REQUIRED_ATTR",
+    "check_and_maybe_init_targs_class",
+    "get_targs",
 ]
 
 
@@ -123,97 +138,73 @@ def targ(*args: Any, **kwargs: Any) -> Any:
     return TArg(*args, **kwargs)
 
 
-_TARGS_ATTR = "_targs"
-_TARGS_FLAG_ATTR = "_targs_flag"
-_TARGS_POST_INIT_ATTR = "_targs_post_init"
+# ---------------------------------------------------------------------------
+# Internal attribute names used to store metadata on classes
+# ---------------------------------------------------------------------------
+
+TARGS_ATTR = "_targs"
+TARGS_FLAG_ATTR = "_targs_flag"
+TARGS_POST_INIT_ATTR = "_targs_post_init"
+TARGS_GROUPS_ATTR = "_targs_groups"
+TARGS_SUBCOMMANDS_ATTR = "_targs_subcommands"
+
+TGROUP_FLAG_ATTR = "_tgroup_flag"
+TGROUP_TITLE_ATTR = "_tgroup_title"
+TGROUP_DESCRIPTION_ATTR = "_tgroup_description"
+
+TEXCLUSIVE_FLAG_ATTR = "_texclusive_flag"
+TEXCLUSIVE_REQUIRED_ATTR = "_texclusive_required"
+
+TSUBCOMMANDS_FLAG_ATTR = "_tsubcommands_flag"
+TSUBCOMMANDS_TITLE_ATTR = "_tsubcommands_title"
+TSUBCOMMANDS_DESCRIPTION_ATTR = "_tsubcommands_description"
+TSUBCOMMANDS_REQUIRED_ATTR = "_tsubcommands_required"
 
 
 def post_init[T, R](func: Callable[[T], R]) -> Callable[[T], R]:
     """Decorator to mark a function as a post-init function for targs classes."""
-    setattr(func, _TARGS_POST_INIT_ATTR, True)
+    setattr(func, TARGS_POST_INIT_ATTR, True)
     return func
 
 
-@dataclass_transform(kw_only_default=True, field_specifiers=(targ, TArg))
-def targs[T](cls: type[T]) -> type[T]:
-    """Decorator to transform a class into a targs class."""
-
-    def __init__(self: T, **kwargs: Any) -> None:
-        targs_dict = get_targs(self.__class__)
-        for attr, arg_config in targs_dict.items():
-            if attr in kwargs:
-                setattr(self, attr, kwargs[attr])
-            elif is_sentry(arg_config.default, Unset):
-                raise ValueError(f"Missing required argument: {attr}")
-            else:
-                setattr(self, attr, arg_config.default)
-
-        for cls in reversed(type(self).__mro__):
-            if not hasattr(cls, _TARGS_FLAG_ATTR):
-                continue
-            for _, member in cls.__dict__.items():
-                if callable(member) and getattr(member, _TARGS_POST_INIT_ATTR, False):
-                    member(self)
-
-    def __repr__(self: T) -> str:
-        targs_attrs = get_targs(self.__class__).keys()
-        return f"{self.__class__.__name__}({', '.join(f'{attr}={getattr(self, attr)!r}' for attr in targs_attrs)})"
-
-    cls.__init__ = __init__
-    cls.__repr__ = __repr__
-    check_and_maybe_init_targs_class(cls, raise_instead_of_init=False)
-    return cls
+# ---------------------------------------------------------------------------
+# Internal helpers for targs class initialization
+# ---------------------------------------------------------------------------
 
 
 def check_and_maybe_init_targs_class(
     cls: type[object], raise_instead_of_init: bool
 ) -> None:
-    if getattr(cls, _TARGS_FLAG_ATTR, None) is not cls:
+    if getattr(cls, TARGS_FLAG_ATTR, None) is not cls:
         if raise_instead_of_init:
             raise TypeError(
                 f"{cls.__name__} is not a targs class. Use @targs decorator."
             )
-        setattr(cls, _TARGS_FLAG_ATTR, cls)
-        setattr(cls, _TARGS_ATTR, copy.deepcopy(getattr(cls, _TARGS_ATTR, {})))
+        setattr(cls, TARGS_FLAG_ATTR, cls)
+        setattr(cls, TARGS_ATTR, copy.deepcopy(getattr(cls, TARGS_ATTR, {})))
 
 
 def get_targs(cls: type[object], *, check: bool = True) -> dict[str, TArg]:
     check_and_maybe_init_targs_class(cls, raise_instead_of_init=check)
-    return getattr(cls, _TARGS_ATTR)
+    return getattr(cls, TARGS_ATTR)
 
 
-def register_targs(
-    parser: argparse.ArgumentParser, cls: type[object], *, verbose: bool = False
-) -> None:
-    targs_dict = get_targs(cls)
-    type_hints = get_type_hints(cls)
-    docstrings = get_attr_docstrings(cls)
-    for attr, arg_config in targs_dict.items():
-        name_part = arg_config.name_or_flag_tuple()
-        config_part = arg_config.dump()
-
-        type_hint = type_hints.get(attr, None)
-        if type_hint is None:
-            raise TypeError(f"Type hint for argument '{attr}' is missing.")
-        if callable(type_hint) and config_part.get("action") is None:
-            config_part.setdefault("type", type_hint)
-
-        doc = docstrings.get(attr)
-        if doc is not None:
-            config_part.setdefault("help", doc)
-
-        if verbose:
-            logger.debug(f"Registering argument {name_part} with config: {config_part}")
-        parser.add_argument(*name_part, **config_part)
+# ---------------------------------------------------------------------------
+# Detection helpers — shared by _decorators and _registry
+# ---------------------------------------------------------------------------
 
 
-def extract_targs[T](args: argparse.Namespace, cls: type[T]) -> T:
-    targs_dict = get_targs(cls)
-    kwargs = {}
-    for attr, arg_config in targs_dict.items():
-        dest = arg_config.get_dest()
-        if hasattr(args, dest):
-            kwargs[attr] = getattr(args, dest)
-        else:
-            raise AttributeError(f"Argument '{dest}' not found in parsed args.")
-    return cls(**kwargs)
+def is_tgroup_class(cls: object) -> bool:
+    return isinstance(cls, type) and getattr(cls, TGROUP_FLAG_ATTR, False) is True
+
+
+def is_texclusive_class(cls: object) -> bool:
+    return isinstance(cls, type) and getattr(cls, TEXCLUSIVE_FLAG_ATTR, False) is True
+
+
+def is_tsubcommands_class(cls: object) -> bool:
+    return isinstance(cls, type) and getattr(cls, TSUBCOMMANDS_FLAG_ATTR, False) is True
+
+
+def is_group_like(cls: object) -> bool:
+    return is_tgroup_class(cls) or is_texclusive_class(cls)

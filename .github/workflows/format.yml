@@ -15,4 +15,4 @@ jobs:
       - uses: isort/isort-action@v1
       - uses: psf/black@stable
         with: # see: https://black.readthedocs.io/en/stable/integrations/github_actions.html
-          version: "~= 25.0"
+          version: "~= 26.0"
