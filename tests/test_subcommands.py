@@ -588,6 +588,7 @@ def test_nested_subcommand_aliases():
     # Second alias
     args = parser.parse_args(["svc", "up", "--port", "3000"])
     result = extract_targs(args, NATopArgs)
+    assert isinstance(result.cmd, NASvc)
     assert isinstance(result.cmd.action, NAStart)
     assert result.cmd.action.port == 3000
 

@@ -172,14 +172,17 @@ def _apply_tgroup(
 
 
 @overload
-def tgroup(cls_or_title: type[Any]) -> type[Any]: ...
+@dataclass_transform(kw_only_default=True, field_specifiers=(targ, TArg))
+def tgroup[T](cls_or_title: type[T]) -> type[T]: ...
 
 
 @overload
+@dataclass_transform(kw_only_default=True, field_specifiers=(targ, TArg))
 def tgroup(cls_or_title: str, /) -> Callable[[type[Any]], type[Any]]: ...
 
 
 @overload
+@dataclass_transform(kw_only_default=True, field_specifiers=(targ, TArg))
 def tgroup(
     *,
     title: str | None = None,
@@ -237,10 +240,12 @@ def _apply_texclusive(
 
 
 @overload
-def texclusive(cls: type[Any]) -> type[Any]: ...
+@dataclass_transform(kw_only_default=True, field_specifiers=(targ, TArg))
+def texclusive[T](cls: type[T]) -> type[T]: ...
 
 
 @overload
+@dataclass_transform(kw_only_default=True, field_specifiers=(targ, TArg))
 def texclusive(
     *,
     required: bool = False,
@@ -290,7 +295,7 @@ def _apply_tsubcommands(
 
 
 @overload
-def tsubcommands(cls_or_title: type[Any]) -> type[Any]: ...
+def tsubcommands[T](cls_or_title: type[T]) -> type[T]: ...
 
 
 @overload

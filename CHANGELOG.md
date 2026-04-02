@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.1]
+
+### Fixed
+- Added `@dataclass_transform` to all overloads of `@tgroup` and `@texclusive` — fixes basedpyright not synthesizing field types when using these decorators
+- Added generic type parameters (`[T]`) to first overloads of `@tgroup`, `@texclusive`, and `@tsubcommands` — preserves exact class type through decoration
+
 ## [1.0.0-post1]
 
 ### Added

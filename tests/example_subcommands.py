@@ -77,7 +77,5 @@ if __name__ == "__main__":
             print(f"Pushing to {r}, force={f}")
         case Pull(remote=r, rebase=rb):
             print(f"Pulling from {r}, rebase={rb}")
-        case None:
-            print("No command specified")
         case _:
-            pass
+            print("No command specified")
