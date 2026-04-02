@@ -298,7 +298,7 @@ class Commands:
 # top-level help listing; the full docstring is used in the
 # subcommand's own --help.
 @tsubcommand(name="push")
-class push(Commands):
+class Push(Commands):
     """Push changes to remote
 
     Upload local commits to the specified remote repository.
@@ -312,7 +312,7 @@ class push(Commands):
 
 
 @tsubcommand(name="pull")
-class pull(Commands):
+class Pull(Commands):
     """Pull changes from remote
 
     Download and integrate commits from the specified remote.
@@ -346,9 +346,9 @@ if __name__ == "__main__":
 
     # Use isinstance or pattern matching for type-safe access:
     match my_args.command:
-        case push(remote=r, force=f):
+        case Push(remote=r, force=f):
             print(f"Pushing to {r}, force={f}")
-        case pull(remote=r, rebase=rb):
+        case Pull(remote=r, rebase=rb):
             print(f"Pulling from {r}, rebase={rb}")
         case None:
             print("No command specified")
