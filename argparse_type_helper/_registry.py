@@ -61,6 +61,45 @@ def _register_single_targ(
     container.add_argument(*name_part, **config_part)
 
 
+def _register_groups(
+    container: Any, cls: type[object], *, verbose: bool = False
+) -> None:
+    """Register argument groups and exclusive groups on *container*, recursively.
+
+    Handles ``@tgroup`` inside ``@targs``, ``@texclusive`` inside ``@targs``,
+    and ``@texclusive`` nested inside ``@tgroup``.
+    """
+    groups: dict[str, type] = getattr(cls, TARGS_GROUPS_ATTR, {})
+    for attr, group_cls in groups.items():
+        if is_tgroup_class(group_cls):
+            group_title = getattr(group_cls, TGROUP_TITLE_ATTR, attr)
+            group_desc = getattr(group_cls, TGROUP_DESCRIPTION_ATTR, None)
+            sub_container = container.add_argument_group(
+                title=group_title, description=group_desc
+            )
+        elif is_texclusive_class(group_cls):
+            req = getattr(group_cls, TEXCLUSIVE_REQUIRED_ATTR, False)
+            sub_container = container.add_mutually_exclusive_group(required=req)
+        else:
+            continue
+
+        group_targs = get_targs(group_cls)
+        group_type_hints = get_type_hints(group_cls)
+        group_docstrings = get_attr_docstrings(group_cls)
+        for g_attr, g_config in group_targs.items():
+            _register_single_targ(
+                sub_container,
+                g_attr,
+                g_config,
+                group_type_hints,
+                group_docstrings,
+                verbose=verbose,
+            )
+
+        # Recurse into nested groups (e.g. texclusive inside tgroup)
+        _register_groups(sub_container, group_cls, verbose=verbose)
+
+
 def register_targs(
     parser: argparse.ArgumentParser, cls: type[object], *, verbose: bool = False
 ) -> None:
@@ -80,33 +119,8 @@ def register_targs(
             parser, attr, arg_config, type_hints, docstrings, verbose=verbose
         )
 
-    # Register argument groups
-    groups: dict[str, type] = getattr(cls, TARGS_GROUPS_ATTR, {})
-    for attr, group_cls in groups.items():
-        if is_tgroup_class(group_cls):
-            group_title = getattr(group_cls, TGROUP_TITLE_ATTR, attr)
-            group_desc = getattr(group_cls, TGROUP_DESCRIPTION_ATTR, None)
-            container = parser.add_argument_group(
-                title=group_title, description=group_desc
-            )
-        elif is_texclusive_class(group_cls):
-            req = getattr(group_cls, TEXCLUSIVE_REQUIRED_ATTR, False)
-            container = parser.add_mutually_exclusive_group(required=req)
-        else:
-            continue
-
-        group_targs = get_targs(group_cls)
-        group_type_hints = get_type_hints(group_cls)
-        group_docstrings = get_attr_docstrings(group_cls)
-        for g_attr, g_config in group_targs.items():
-            _register_single_targ(
-                container,
-                g_attr,
-                g_config,
-                group_type_hints,
-                group_docstrings,
-                verbose=verbose,
-            )
+    # Register argument groups (recursively handles nesting)
+    _register_groups(parser, cls, verbose=verbose)
 
     # Register subcommands
     subcommands: dict[str, type] = getattr(cls, TARGS_SUBCOMMANDS_ATTR, {})

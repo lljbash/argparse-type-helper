@@ -32,6 +32,8 @@ from argparse_type_helper._types import (
     check_and_maybe_init_targs_class,
     get_targs,
     is_group_like,
+    is_texclusive_class,
+    is_tgroup_class,
     is_tsubcommands_class,
     targ,
 )
@@ -164,6 +166,16 @@ def _apply_tgroup(
 ) -> type[Any]:
     """Internal: apply tgroup metadata + targs to a class."""
     cls = targs(cls)
+
+    # Validate: only texclusive is allowed nested inside tgroup
+    nested: dict[str, type] = getattr(cls, TARGS_GROUPS_ATTR, {})
+    for attr, nested_cls in nested.items():
+        if is_tgroup_class(nested_cls):
+            raise TypeError(
+                f"@tgroup '{cls.__name__}' contains nested @tgroup '{nested_cls.__name__}' "
+                f"(attribute '{attr}'). Only @texclusive can be nested inside @tgroup."
+            )
+
     setattr(cls, TGROUP_FLAG_ATTR, True)
     doc = DocString.parse(cls.__doc__)
     setattr(cls, TGROUP_TITLE_ATTR, title or doc.title or cls.__name__)
@@ -234,6 +246,22 @@ def _apply_texclusive(
 ) -> type[Any]:
     """Internal: apply texclusive metadata + targs to a class."""
     cls = targs(cls)
+
+    # Validate: texclusive must not contain nested groups of any kind
+    nested: dict[str, type] = getattr(cls, TARGS_GROUPS_ATTR, {})
+    for attr, nested_cls in nested.items():
+        if is_tgroup_class(nested_cls):
+            kind = "@tgroup"
+        elif is_texclusive_class(nested_cls):
+            kind = "@texclusive"
+        else:
+            continue
+        raise TypeError(
+            f"@texclusive '{cls.__name__}' contains nested {kind} "
+            f"'{nested_cls.__name__}' (attribute '{attr}'). "
+            f"@texclusive cannot contain nested groups."
+        )
+
     setattr(cls, TEXCLUSIVE_FLAG_ATTR, True)
     setattr(cls, TEXCLUSIVE_REQUIRED_ATTR, required)
     return cls

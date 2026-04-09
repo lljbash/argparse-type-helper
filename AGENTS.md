@@ -85,6 +85,7 @@ All internal modules use `_` prefix to signal they are not public API. All publi
 
 3. **`_registry.py`** — Parser registration and extraction
    - `register_targs(parser, cls)`: Wires up all arguments on an `ArgumentParser`
+   - `_register_groups(container, cls)`: Recursively registers argument groups and exclusive groups on a container; supports `@texclusive` nested inside `@tgroup`
    - `extract_targs(args, cls)`: Reconstructs a typed instance from parsed `Namespace`
    - `create_parser(cls, ...)`: Creates an `ArgumentParser` and registers in one step
 
@@ -111,6 +112,7 @@ All internal modules use `_` prefix to signal they are not public API. All publi
 - **DocString Splitting** (`_docstring.py`): Uses `inspect.cleandoc()` then splits on `"\n\n"` (first blank line). First paragraph = title, rest = description. Applied consistently to `@targs`, `@tgroup`, `@tsubcommands`, and subcommand classes.
 - **Mutable Default Safety**: `list`, `dict`, and `set` defaults are shallow-copied in the generated `__init__` to prevent sharing across instances.
 - **Decorator Consistency**: All three decorators (`@tgroup`, `@texclusive`, `@tsubcommands`) support dual calling styles: bare `@decorator` and parameterized `@decorator(...)`. Title can be passed as the first positional argument or via keyword. Note: `@texclusive` does not support `title`/`description` — this is a limitation of `argparse.MutuallyExclusiveGroup`. `@tsubcommand` always requires `name` — no bare form.
+- **Group Nesting Rules**: `@texclusive` can be nested inside `@tgroup` — the exclusive group is created on the argument group's container. Other nesting combinations are rejected at decoration time: `@tgroup` inside `@tgroup`, `@tgroup` inside `@texclusive`, and `@texclusive` inside `@texclusive` all raise `TypeError`.
 
 ## Key Conventions
 
@@ -166,7 +168,7 @@ All internal modules use `_` prefix to signal they are not public API. All publi
 ### Testing
 - Located in `tests/` directory
 - `test_basic.py`: Core functionality (targ, Name, Flag, register, extract, subclass, post_init, docstrings, all action types, custom Action, nargs, required, metavar, dest)
-- `test_groups.py`: Argument groups and mutually exclusive groups
+- `test_groups.py`: Argument groups, mutually exclusive groups, `@texclusive` nested inside `@tgroup`, invalid nesting rejection
 - `test_subcommands.py`: Subcommands with inheritance, groups inside subcommands, pattern matching
 - `test_type_inference.py`: Type inference expansion (X | None, Optional[X], list[X]+nargs, bool protection)
 - `test_docstring.py`: DocString.parse() unit tests (single/multi/empty/whitespace edge cases)

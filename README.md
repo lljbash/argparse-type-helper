@@ -24,7 +24,7 @@ pip install argparse-type-helper
 - **Familiar API** — Same parameters as `argparse.add_argument` (`help`, `action`, `nargs`, etc.), with optional `create_parser()` shortcut.
 - **Type inference** — Automatically infers `type=` from hints (`X | None`, `Sequence[X]`, bare `int`/`float`/`str`). Skips `bool`.
 - **Docstring-driven help** — Attribute docstrings → help text, class docstrings → descriptions. IDE-friendly.
-- **Argument groups & exclusion** — `@tgroup` for groups, `@texclusive` for mutually exclusive args.
+- **Argument groups & exclusion** — `@tgroup` for groups, `@texclusive` for mutually exclusive args. `@texclusive` can be nested inside `@tgroup`.
 - **Subcommands** — `@tsubcommands` + `@tsubcommand(name=..., aliases=[...])` with class inheritance, `isinstance`/`match` support.
 - **Hybrid usage** — Mix `@targs` classes with native `parser.add_argument()` freely.
 
@@ -263,6 +263,28 @@ The `@tgroup` decorator supports multiple calling styles:
 Docstring splitting rule: the first paragraph (up to the first blank line) becomes the **title**, the rest becomes the **description**. Explicit `title`/`description` parameters always override docstring values.
 
 > **Note:** Unlike `@tgroup` and `@tsubcommands`, `@texclusive` does not support `title` or `description` parameters. This is a limitation of `argparse.MutuallyExclusiveGroup` itself.
+
+### Nesting
+
+`@texclusive` can be nested inside `@tgroup` — the mutually exclusive constraint is created within the argument group:
+
+```python
+@texclusive(required=True)
+class OutputMode:
+    json: bool = targ(Flag, action="store_true")
+    csv: bool = targ(Flag, action="store_true")
+
+@tgroup("Output Settings")
+class OutputOpts:
+    dest: str = targ(Flag, default="stdout")
+    mode: OutputMode  # nested exclusive group
+
+@targs
+class MyArgs:
+    output: OutputOpts
+```
+
+Other nesting combinations (`@tgroup` inside `@tgroup`, `@tgroup` inside `@texclusive`, `@texclusive` inside `@texclusive`) are rejected with `TypeError`.
 
 ## Subcommands
 

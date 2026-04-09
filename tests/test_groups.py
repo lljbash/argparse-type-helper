@@ -397,3 +397,278 @@ def test_exclusive_direct_construction():
     mode = VerbosityMode(verbose=True, quiet=False)
     assert mode.verbose is True
     assert mode.quiet is False
+
+
+# ---------------------------------------------------------------------------
+# @texclusive nested inside @tgroup
+# ---------------------------------------------------------------------------
+
+
+@texclusive(required=True)
+class NestedExclusive:
+    alpha: bool = targ(Flag, action="store_true")
+    beta: bool = targ(Flag, action="store_true")
+
+
+@tgroup("Container Group")
+class GroupWithExclusive:
+    """A group that contains both regular args and an exclusive sub-group."""
+
+    tag: str = targ(Flag, default="latest")
+    choice: NestedExclusive
+
+
+@targs
+class ArgsWithNestedExclusive:
+    name: str = targ(Name)
+    container: GroupWithExclusive
+
+
+def test_nested_exclusive_registration_and_parsing():
+    """texclusive nested inside tgroup registers and parses correctly."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, ArgsWithNestedExclusive)
+    args = parser.parse_args(["hello", "--alpha", "--tag", "v2"])
+    result = extract_targs(args, ArgsWithNestedExclusive)
+    assert result.name == "hello"
+    assert result.container.tag == "v2"
+    assert result.container.choice.alpha is True
+    assert result.container.choice.beta is False
+
+
+def test_nested_exclusive_other_option():
+    """The other exclusive option works correctly."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, ArgsWithNestedExclusive)
+    args = parser.parse_args(["hello", "--beta"])
+    result = extract_targs(args, ArgsWithNestedExclusive)
+    assert result.container.choice.alpha is False
+    assert result.container.choice.beta is True
+
+
+def test_nested_exclusive_conflict():
+    """Mutually exclusive constraint is enforced inside a tgroup."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, ArgsWithNestedExclusive)
+    with pytest.raises(SystemExit):
+        parser.parse_args(["hello", "--alpha", "--beta"])
+
+
+def test_nested_exclusive_required():
+    """required=True on nested texclusive is enforced."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, ArgsWithNestedExclusive)
+    with pytest.raises(SystemExit):
+        parser.parse_args(["hello"])
+
+
+def test_nested_exclusive_help_text(capsys: pytest.CaptureFixture[str]):
+    """Help output shows the tgroup title with exclusive args underneath."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, ArgsWithNestedExclusive)
+    parser.print_help()
+    captured = capsys.readouterr()
+    assert "Container Group" in captured.out
+    assert "--alpha" in captured.out
+    assert "--beta" in captured.out
+    assert "--tag" in captured.out
+
+
+def test_nested_exclusive_defaults():
+    """Defaults work for both the group arg and nested exclusive args."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, ArgsWithNestedExclusive)
+    # required=True means we must supply one exclusive option
+    args = parser.parse_args(["myname", "--alpha"])
+    result = extract_targs(args, ArgsWithNestedExclusive)
+    assert result.container.tag == "latest"  # default
+    assert result.container.choice.alpha is True
+
+
+def test_nested_exclusive_repr():
+    """repr() of nested structure is correct."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, ArgsWithNestedExclusive)
+    args = parser.parse_args(["myname", "--beta"])
+    result = extract_targs(args, ArgsWithNestedExclusive)
+    r = repr(result)
+    assert "ArgsWithNestedExclusive" in r
+    assert "GroupWithExclusive" in r
+    assert "NestedExclusive" in r
+
+
+def test_nested_exclusive_direct_construction():
+    """Direct construction of tgroup with nested texclusive works."""
+    excl = NestedExclusive(alpha=True, beta=False)
+    group = GroupWithExclusive(tag="v3", choice=excl)
+    obj = ArgsWithNestedExclusive(name="test", container=group)
+    assert obj.container.choice.alpha is True
+    assert obj.container.tag == "v3"
+
+
+# ---------------------------------------------------------------------------
+# @texclusive(required=False) nested inside @tgroup
+# ---------------------------------------------------------------------------
+
+
+@texclusive
+class OptionalNestedExclusive:
+    dry_run: bool = targ(Flag, action="store_true")
+    force: bool = targ(Flag, action="store_true")
+
+
+@tgroup("Deploy Options")
+class DeployGroup:
+    target: str = targ(Flag, default="staging")
+    safety: OptionalNestedExclusive
+
+
+@targs
+class ArgsOptionalNestedExclusive:
+    deploy: DeployGroup
+
+
+def test_nested_exclusive_optional_none_selected():
+    """Optional nested texclusive allows no selection."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, ArgsOptionalNestedExclusive)
+    args = parser.parse_args([])
+    result = extract_targs(args, ArgsOptionalNestedExclusive)
+    assert result.deploy.safety.dry_run is False
+    assert result.deploy.safety.force is False
+    assert result.deploy.target == "staging"
+
+
+def test_nested_exclusive_optional_one_selected():
+    """Optional nested texclusive works with a selection."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, ArgsOptionalNestedExclusive)
+    args = parser.parse_args(["--force", "--target", "production"])
+    result = extract_targs(args, ArgsOptionalNestedExclusive)
+    assert result.deploy.safety.force is True
+    assert result.deploy.safety.dry_run is False
+    assert result.deploy.target == "production"
+
+
+# ---------------------------------------------------------------------------
+# Multiple @texclusive inside one @tgroup
+# ---------------------------------------------------------------------------
+
+
+@texclusive
+class ColorMode:
+    color: bool = targ(Flag, action="store_true")
+    no_color: bool = targ(Flag, action="store_true")
+
+
+@texclusive
+class WidthMode:
+    wide: bool = targ(Flag, action="store_true")
+    narrow: bool = targ(Flag, action="store_true")
+
+
+@tgroup("Display Settings")
+class DisplayGroup:
+    colors: ColorMode
+    widths: WidthMode
+
+
+@targs
+class ArgsMultiExclusive:
+    display: DisplayGroup
+
+
+def test_multiple_exclusive_in_group():
+    """Multiple texclusive groups can coexist inside a single tgroup."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, ArgsMultiExclusive)
+    args = parser.parse_args(["--color", "--narrow"])
+    result = extract_targs(args, ArgsMultiExclusive)
+    assert result.display.colors.color is True
+    assert result.display.colors.no_color is False
+    assert result.display.widths.wide is False
+    assert result.display.widths.narrow is True
+
+
+def test_multiple_exclusive_in_group_conflict_within():
+    """Conflict within one exclusive subgroup is still enforced."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, ArgsMultiExclusive)
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--color", "--no-color"])
+
+
+def test_multiple_exclusive_in_group_cross_group_ok():
+    """Options from different exclusive subgroups don't conflict."""
+    parser = argparse.ArgumentParser()
+    register_targs(parser, ArgsMultiExclusive)
+    args = parser.parse_args(["--no-color", "--wide"])
+    result = extract_targs(args, ArgsMultiExclusive)
+    assert result.display.colors.no_color is True
+    assert result.display.widths.wide is True
+
+
+# ---------------------------------------------------------------------------
+# @tgroup with texclusive + regular args + create_parser
+# ---------------------------------------------------------------------------
+
+
+def test_nested_exclusive_with_create_parser():
+    """create_parser works with nested texclusive inside tgroup."""
+    from argparse_type_helper import create_parser
+
+    parser = create_parser(ArgsWithNestedExclusive)
+    args = parser.parse_args(["test", "--beta", "--tag", "v1"])
+    result = extract_targs(args, ArgsWithNestedExclusive)
+    assert result.name == "test"
+    assert result.container.tag == "v1"
+    assert result.container.choice.beta is True
+
+
+# ---------------------------------------------------------------------------
+# Invalid nesting (rejected at decoration time)
+# ---------------------------------------------------------------------------
+
+
+def test_tgroup_inside_tgroup_raises():
+    """@tgroup nested inside @tgroup is rejected."""
+
+    @tgroup
+    class Inner:
+        x: str = targ(Flag, default="a")
+
+    with pytest.raises(
+        TypeError, match="Only @texclusive can be nested inside @tgroup"
+    ):
+
+        @tgroup
+        class Outer:
+            inner: Inner
+
+
+def test_tgroup_inside_texclusive_raises():
+    """@tgroup nested inside @texclusive is rejected."""
+
+    @tgroup
+    class Inner:
+        x: str = targ(Flag, default="a")
+
+    with pytest.raises(TypeError, match="@texclusive cannot contain nested groups"):
+
+        @texclusive
+        class Outer:
+            inner: Inner
+
+
+def test_texclusive_inside_texclusive_raises():
+    """@texclusive nested inside @texclusive is rejected."""
+
+    @texclusive
+    class Inner:
+        x: bool = targ(Flag, action="store_true")
+
+    with pytest.raises(TypeError, match="@texclusive cannot contain nested groups"):
+
+        @texclusive
+        class Outer:
+            inner: Inner
