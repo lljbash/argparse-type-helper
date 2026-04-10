@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.0]
+
+### Added
+- **Nested `@texclusive` inside `@tgroup`** — Mutually exclusive groups can now be nested inside argument groups. The exclusive constraint is created within the argument group's container, allowing fine-grained organization of related but mutually exclusive options.
+- **Invalid nesting rejection** — The following nesting combinations are now rejected at decoration time with `TypeError`:
+  - `@tgroup` inside `@tgroup`
+  - `@tgroup` inside `@texclusive`
+  - `@texclusive` inside `@texclusive`
+  - Only `@texclusive` can be nested inside `@tgroup`.
+
 ## [1.0.1]
 
 ### Fixed
